@@ -20,33 +20,35 @@
 package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.IntReaderImpl;
+import org.apache.arrow.vector.complex.impl.TimeMilliReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.TimeMilliHolder;
+import org.apache.arrow.vector.holders.NullableTimeMilliHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
+import org.joda.time.LocalDateTime;
+import org.slf4j.Logger;
 
 /**
- * NullableIntVector implements a fixed width (4 bytes) vector of
+ * NullableTimeMilliVector implements a fixed width (4 bytes) vector of
  * integer values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableIntVector extends BaseNullableFixedWidthVector {
+public class NullableTimeMilliVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
            org.slf4j.LoggerFactory.getLogger(NullableIntVector.class);
    private static final byte TYPE_WIDTH = 4;
    private final FieldReader reader;
 
-   public NullableIntVector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(org.apache.arrow.vector.types.Types.MinorType.INT.getType()),
+   public NullableTimeMilliVector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(Types.MinorType.TIMEMILLI.getType()),
               allocator);
    }
 
-   public NullableIntVector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableTimeMilliVector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new IntReaderImpl(NullableIntVector.this);
+      reader = new TimeMilliReaderImpl(NullableTimeMilliVector.this);
    }
 
    @Override
@@ -61,7 +63,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.INT;
+      return Types.MinorType.TIMEMILLI;
    }
 
 
@@ -92,7 +94,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableIntHolder holder){
+   public void get(int index, NullableTimeMilliHolder holder){
       if(isSet(index) == 0) {
          holder.isSet = 0;
          return;
@@ -107,21 +109,22 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Integer getObject(int index) {
+   public LocalDateTime getObject(int index) {
       if (isSet(index) == 0) {
          return null;
-      } else {
-         return get(index);
       }
+      org.joda.time.LocalDateTime ldt = new org.joda.time.LocalDateTime(get(index),
+              org.joda.time.DateTimeZone.UTC);
+      return ldt;
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableTimeMilliVector from) {
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableTimeMilliVector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -157,7 +160,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void set(int index, NullableTimeMilliHolder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
@@ -176,7 +179,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, IntHolder holder){
+   public void set(int index, TimeMilliHolder holder){
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, holder.value);
    }
@@ -195,27 +198,27 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
    }
 
    /**
-    * Same as {@link #set(int, NullableIntHolder)} except that it handles the
+    * Same as {@link #set(int, NullableTimeMilliHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableTimeMilliHolder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, IntHolder)} except that it handles the
+    * Same as {@link #set(int, TimeMilliHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, IntHolder holder){
+   public void setSafe(int index, TimeMilliHolder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -261,22 +264,22 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableIntVector)to);
+      return new TransferImpl((NullableTimeMilliVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableIntVector to;
+      NullableTimeMilliVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableIntVector(ref, field.getFieldType(), allocator);
+         to = new NullableTimeMilliVector(ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableIntVector to){
+      public TransferImpl(NullableTimeMilliVector to){
          this.to = to;
       }
 
       @Override
-      public NullableIntVector getTo(){
+      public NullableTimeMilliVector getTo(){
          return to;
       }
 
@@ -292,7 +295,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableIntVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableTimeMilliVector.this);
       }
    }
 }

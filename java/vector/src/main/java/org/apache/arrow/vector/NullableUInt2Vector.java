@@ -20,33 +20,34 @@
 package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.IntReaderImpl;
+import org.apache.arrow.vector.complex.impl.UInt2ReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.UInt2Holder;
+import org.apache.arrow.vector.holders.NullableUInt2Holder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
+import org.slf4j.Logger;
 
 /**
- * NullableIntVector implements a fixed width (4 bytes) vector of
+ * NullableUInt2Vector implements a fixed width (2 bytes) vector of
  * integer values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableIntVector extends BaseNullableFixedWidthVector {
+public class NullableUInt2Vector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableIntVector.class);
-   private static final byte TYPE_WIDTH = 4;
+           org.slf4j.LoggerFactory.getLogger(NullableUInt1Vector.class);
+   private static final byte TYPE_WIDTH = 2;
    private final FieldReader reader;
 
-   public NullableIntVector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(org.apache.arrow.vector.types.Types.MinorType.INT.getType()),
+   public NullableUInt2Vector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(org.apache.arrow.vector.types.Types.MinorType.UINT2.getType()),
               allocator);
    }
 
-   public NullableIntVector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableUInt2Vector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new IntReaderImpl(NullableIntVector.this);
+      reader = new UInt2ReaderImpl(NullableUInt2Vector.this);
    }
 
    @Override
@@ -61,7 +62,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.INT;
+      return Types.MinorType.UINT2;
    }
 
 
@@ -78,11 +79,11 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public int get(int index) throws IllegalStateException {
+   public char get(int index) throws IllegalStateException {
       if(isSet(index) == 0) {
          throw new IllegalStateException("Value at index is null");
       }
-      return valueBuffer.getInt(index * TYPE_WIDTH);
+      return valueBuffer.getChar(index * TYPE_WIDTH);
    }
 
    /**
@@ -92,13 +93,13 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableIntHolder holder){
+   public void get(int index, NullableUInt2Holder holder){
       if(isSet(index) == 0) {
          holder.isSet = 0;
          return;
       }
       holder.isSet = 1;
-      holder.value = valueBuffer.getInt(index * TYPE_WIDTH);
+      holder.value = valueBuffer.getChar(index * TYPE_WIDTH);
    }
 
    /**
@@ -107,7 +108,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Integer getObject(int index) {
+   public Character getObject(int index) {
       if (isSet(index) == 0) {
          return null;
       } else {
@@ -115,13 +116,13 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableUInt2Vector from) {
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableUInt2Vector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -135,7 +136,11 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
 
    private void setValue(int index, int value) {
-      valueBuffer.setInt(index * TYPE_WIDTH, value);
+      valueBuffer.setChar(index * TYPE_WIDTH, value);
+   }
+
+   private void setValue(int index, char value) {
+      valueBuffer.setChar(index * TYPE_WIDTH, value);
    }
 
    /**
@@ -150,6 +155,17 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
    }
 
    /**
+    * Set the element at the given index to the given value.
+    *
+    * @param index   position of element
+    * @param value   value of element
+    */
+   public void set(int index, char value) {
+      BitVectorHelper.setValidityBitToOne(validityBuffer, index);
+      setValue(index, value);
+   }
+
+   /**
     * Set the element at the given index to the value set in data holder.
     * If the value in holder is not indicated as set, element in the
     * at the given index will be null.
@@ -157,7 +173,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void set(int index, NullableUInt2Holder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
@@ -176,7 +192,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, IntHolder holder){
+   public void set(int index, UInt2Holder holder){
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, holder.value);
    }
@@ -195,27 +211,40 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
    }
 
    /**
-    * Same as {@link #set(int, NullableIntHolder)} except that it handles the
+    * Same as {@link #set(int, char)} except that it handles the
+    * case when index is greater than or equal to existing
+    * value capacity {@link #getValueCapacity()}.
+    *
+    * @param index   position of element
+    * @param value   value of element
+    */
+   public void setSafe(int index, char value) {
+      handleSafe(index);
+      set(index, value);
+   }
+
+   /**
+    * Same as {@link #set(int, NullableUInt2Holder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableUInt2Holder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, IntHolder)} except that it handles the
+    * Same as {@link #set(int, UInt2Holder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, IntHolder holder){
+   public void setSafe(int index, UInt2Holder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -233,7 +262,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, int valueField ) {
+   public void set(int index, int isSet, char valueField ) {
       if (isSet > 0) {
          set(index, valueField);
       } else {
@@ -241,7 +270,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void setSafe(int index, int isSet, int valueField ) {
+   public void setSafe(int index, int isSet, char valueField ) {
       handleSafe(index);
       set(index, isSet, valueField);
    }
@@ -261,22 +290,22 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableIntVector)to);
+      return new TransferImpl((NullableUInt2Vector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableIntVector to;
+      NullableUInt2Vector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableIntVector(ref, field.getFieldType(), allocator);
+         to = new NullableUInt2Vector(ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableIntVector to){
+      public TransferImpl(NullableUInt2Vector to){
          this.to = to;
       }
 
       @Override
-      public NullableIntVector getTo(){
+      public NullableUInt2Vector getTo(){
          return to;
       }
 
@@ -292,7 +321,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableIntVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableUInt2Vector.this);
       }
    }
 }

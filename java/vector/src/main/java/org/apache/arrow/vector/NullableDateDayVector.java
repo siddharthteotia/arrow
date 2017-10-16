@@ -20,33 +20,34 @@
 package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.IntReaderImpl;
+import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.DateDayHolder;
+import org.apache.arrow.vector.holders.NullableDateDayHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
+import org.slf4j.Logger;
 
 /**
  * NullableIntVector implements a fixed width (4 bytes) vector of
  * integer values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableIntVector extends BaseNullableFixedWidthVector {
+public class NullableDateDayVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
            org.slf4j.LoggerFactory.getLogger(NullableIntVector.class);
    private static final byte TYPE_WIDTH = 4;
    private final FieldReader reader;
 
-   public NullableIntVector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(org.apache.arrow.vector.types.Types.MinorType.INT.getType()),
+   public NullableDateDayVector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(Types.MinorType.DATEDAY.getType()),
               allocator);
    }
 
-   public NullableIntVector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableDateDayVector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new IntReaderImpl(NullableIntVector.this);
+      reader = new DateDayReaderImpl(NullableDateDayVector.this);
    }
 
    @Override
@@ -61,7 +62,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.INT;
+      return Types.MinorType.DATEDAY;
    }
 
 
@@ -92,7 +93,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableIntHolder holder){
+   public void get(int index, NullableDateDayHolder holder){
       if(isSet(index) == 0) {
          holder.isSet = 0;
          return;
@@ -115,13 +116,13 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableDateDayVector from) {
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableDateDayVector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -157,7 +158,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void set(int index, NullableDateDayHolder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
@@ -176,7 +177,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, IntHolder holder){
+   public void set(int index, DateDayHolder holder){
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, holder.value);
    }
@@ -195,27 +196,27 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
    }
 
    /**
-    * Same as {@link #set(int, NullableIntHolder)} except that it handles the
+    * Same as {@link #set(int, NullableDateDayHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableDateDayHolder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, IntHolder)} except that it handles the
+    * Same as {@link #set(int, DateDayHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, IntHolder holder){
+   public void setSafe(int index, DateDayHolder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -261,22 +262,22 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableIntVector)to);
+      return new TransferImpl((NullableDateDayVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableIntVector to;
+      NullableDateDayVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableIntVector(ref, field.getFieldType(), allocator);
+         to = new NullableDateDayVector(ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableIntVector to){
+      public TransferImpl(NullableDateDayVector to){
          this.to = to;
       }
 
       @Override
-      public NullableIntVector getTo(){
+      public NullableDateDayVector getTo(){
          return to;
       }
 
@@ -292,7 +293,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableIntVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableDateDayVector.this);
       }
    }
 }

@@ -19,34 +19,45 @@
 
 package org.apache.arrow.vector;
 
+import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.IntReaderImpl;
+import org.apache.arrow.vector.complex.impl.DecimalReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.IntHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.DecimalHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.arrow.vector.util.TransferPair;
 
+import java.math.BigDecimal;
+
 /**
- * NullableIntVector implements a fixed width (4 bytes) vector of
- * integer values which could be null. A validity buffer (bit vector) is
+ * NullableDecimalVector implements a fixed width vector (16 bytes) of
+ * decimal values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableIntVector extends BaseNullableFixedWidthVector {
+public class NullableDecimalVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableIntVector.class);
-   private static final byte TYPE_WIDTH = 4;
+           org.slf4j.LoggerFactory.getLogger(NullableDecimalVector.class);
+   private static final byte TYPE_WIDTH = 16;
    private final FieldReader reader;
 
-   public NullableIntVector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(org.apache.arrow.vector.types.Types.MinorType.INT.getType()),
-              allocator);
+   private final int precision;
+   private final int scale;
+
+   public NullableDecimalVector(String name, BufferAllocator allocator,
+                                int precision, int scale) {
+      this(name, FieldType.nullable(Types.MinorType.DECIMAL.getType()),
+              allocator, precision, scale);
    }
 
-   public NullableIntVector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableDecimalVector(String name, FieldType fieldType, BufferAllocator allocator,
+                                int precision, int scale) {
       super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new IntReaderImpl(NullableIntVector.this);
+      reader = new DecimalReaderImpl(NullableDecimalVector.this);
+      this.precision = precision;
+      this.scale = scale;
    }
 
    @Override
@@ -61,7 +72,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.INT;
+      return Types.MinorType.DECIMAL;
    }
 
 
@@ -78,11 +89,11 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public int get(int index) throws IllegalStateException {
+   public ArrowBuf get(int index) throws IllegalStateException {
       if(isSet(index) == 0) {
          throw new IllegalStateException("Value at index is null");
       }
-      return valueBuffer.getInt(index * TYPE_WIDTH);
+      return valueBuffer.slice(index * TYPE_WIDTH, TYPE_WIDTH);
    }
 
    /**
@@ -92,13 +103,16 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableIntHolder holder){
-      if(isSet(index) == 0) {
+   public void get(int index, NullableDecimalHolder holder) {
+      if (isSet(index) == 0) {
          holder.isSet = 0;
          return;
       }
       holder.isSet = 1;
-      holder.value = valueBuffer.getInt(index * TYPE_WIDTH);
+      holder.buffer = valueBuffer;
+      holder.precision = precision;
+      holder.scale = scale;
+      holder.start = index * TYPE_WIDTH;
    }
 
    /**
@@ -107,21 +121,22 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Integer getObject(int index) {
+   public BigDecimal getObject(int index) {
       if (isSet(index) == 0) {
          return null;
       } else {
-         return get(index);
+         return DecimalUtility.getBigDecimalFromArrowBuf(valueBuffer, index, scale);
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableDecimalVector from) {
       if (from.isSet(fromIndex) != 0) {
-         set(thisIndex, from.get(fromIndex));
+         from.valueBuffer.getBytes(fromIndex * TYPE_WIDTH, valueBuffer,
+                 thisIndex * TYPE_WIDTH, TYPE_WIDTH);
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableIntVector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableDecimalVector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -134,19 +149,38 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     ******************************************************************/
 
 
-   private void setValue(int index, int value) {
-      valueBuffer.setInt(index * TYPE_WIDTH, value);
+   /**
+    * Set the element at the given index to the given value.
+    *
+    * @param index    position of element
+    * @param buffer   ArrowBuf containing decimal value.
+    */
+   public void set(int index, ArrowBuf buffer) {
+      BitVectorHelper.setValidityBitToOne(validityBuffer, index);
+      valueBuffer.setBytes(index * TYPE_WIDTH, buffer, 0, TYPE_WIDTH);
+   }
+
+   /**
+    * Set the element at the given index to the given value.
+    *
+    * @param index    position of element
+    * @param start    start index of data in the buffer
+    * @param buffer   ArrowBuf containing decimal value.
+    */
+   public void set(int index, int start, ArrowBuf buffer) {
+      BitVectorHelper.setValidityBitToOne(validityBuffer, index);
+      valueBuffer.setBytes(index * TYPE_WIDTH, buffer, start, TYPE_WIDTH);
    }
 
    /**
     * Set the element at the given index to the given value.
     *
     * @param index   position of element
-    * @param value   value of element
+    * @param value   BigDecimal containing decimal value.
     */
-   public void set(int index, int value) {
-      BitVectorHelper.setValidityBitToOne(validityBuffer, index);
-      setValue(index, value);
+   public void set(int index, BigDecimal value){
+      DecimalUtility.checkPrecisionAndScale(value, precision, scale);
+      DecimalUtility.writeBigDecimalToArrowBuf(value, valueBuffer, index);
    }
 
    /**
@@ -157,13 +191,13 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void set(int index, NullableDecimalHolder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
       else if(holder.isSet > 0) {
          BitVectorHelper.setValidityBitToOne(validityBuffer, index);
-         setValue(index, holder.value);
+         valueBuffer.setBytes(index * TYPE_WIDTH, holder.buffer, holder.start, TYPE_WIDTH);
       }
       else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
@@ -176,46 +210,73 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, IntHolder holder){
+   public void set(int index, DecimalHolder holder){
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
-      setValue(index, holder.value);
+      valueBuffer.setBytes(index * TYPE_WIDTH, holder.buffer, holder.start, TYPE_WIDTH);
    }
 
    /**
-    * Same as {@link #set(int, int)} except that it handles the
+    * Same as {@link #set(int, ArrowBuf)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
-    * @param value   value of element
+    * @param buffer  ArrowBuf containing decimal value.
     */
-   public void setSafe(int index, int value) {
+   public void setSafe(int index, ArrowBuf buffer) {
+      handleSafe(index);
+      set(index, buffer);
+   }
+
+   /**
+    * Same as {@link #set(int, int, ArrowBuf)} except that it handles the
+    * case when index is greater than or equal to existing
+    * value capacity {@link #getValueCapacity()}.
+    *
+    * @param index    position of element
+    * @param start    start index of data in the buffer
+    * @param buffer   ArrowBuf containing decimal value.
+    */
+   public void setSafe(int index, int start, ArrowBuf buffer) {
+      handleSafe(index);
+      set(index, start, buffer);
+   }
+
+   /**
+    * Same as {@link #set(int, BigDecimal)} except that it handles the
+    * case when index is greater than or equal to existing
+    * value capacity {@link #getValueCapacity()}.
+    *
+    * @param index   position of element
+    * @param value   BigDecimal containing decimal value.
+    */
+   public void setSafe(int index, BigDecimal value){
       handleSafe(index);
       set(index, value);
    }
 
    /**
-    * Same as {@link #set(int, NullableIntHolder)} except that it handles the
+    * Same as {@link #set(int, NullableDecimalHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableIntHolder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableDecimalHolder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, IntHolder)} except that it handles the
+    * Same as {@link #set(int, DecimalHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, IntHolder holder){
+   public void setSafe(int index, DecimalHolder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -233,17 +294,17 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, int valueField ) {
+   public void set(int index, int isSet, int startField, ArrowBuf bufferField ) {
       if (isSet > 0) {
-         set(index, valueField);
+         set(index, startField, bufferField);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, int valueField ) {
+   public void setSafe(int index, int isSet, int startField, ArrowBuf bufferField) {
       handleSafe(index);
-      set(index, isSet, valueField);
+      set(index, isSet, startField, bufferField);
    }
 
 
@@ -261,22 +322,23 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableIntVector)to);
+      return new TransferImpl((NullableDecimalVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableIntVector to;
+      NullableDecimalVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableIntVector(ref, field.getFieldType(), allocator);
+         to = new NullableDecimalVector(ref, field.getFieldType(), allocator,
+                 NullableDecimalVector.this.precision, NullableDecimalVector.this.scale);
       }
 
-      public TransferImpl(NullableIntVector to){
+      public TransferImpl(NullableDecimalVector to){
          this.to = to;
       }
 
       @Override
-      public NullableIntVector getTo(){
+      public NullableDecimalVector getTo(){
          return to;
       }
 
@@ -292,7 +354,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableIntVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableBigIntVector.this);
       }
    }
 }
