@@ -80,14 +80,13 @@ public class TestFixedSizeListVector {
   public void testFloatTypeNullable() {
     try (FixedSizeListVector vector = FixedSizeListVector.empty("list", 2, allocator)) {
       NullableFloat4Vector nested = (NullableFloat4Vector) vector.addOrGetVector(FieldType.nullable(MinorType.FLOAT4.getType())).getVector();
-      NullableFloat4Vector.Mutator mutator = nested.getMutator();
       vector.allocateNew();
 
       for (int i = 0; i < 10; i++) {
         if (i % 2 == 0) {
           vector.getMutator().setNotNull(i);
-          mutator.set(i * 2, i + 0.1f);
-          mutator.set(i * 2 + 1, i + 10.1f);
+          nested.set(i * 2, i + 0.1f);
+          nested.set(i * 2 + 1, i + 10.1f);
         }
       }
       vector.getMutator().setValueCount(10);
@@ -160,14 +159,13 @@ public class TestFixedSizeListVector {
     try (FixedSizeListVector from = new FixedSizeListVector("from", allocator, 2, null, null);
          FixedSizeListVector to = new FixedSizeListVector("to", allocator, 2, null, null)) {
       NullableFloat4Vector nested = (NullableFloat4Vector) from.addOrGetVector(FieldType.nullable(MinorType.FLOAT4.getType())).getVector();
-      NullableFloat4Vector.Mutator mutator = nested.getMutator();
       from.allocateNew();
 
       for (int i = 0; i < 10; i++) {
         if (i % 2 == 0) {
           from.getMutator().setNotNull(i);
-          mutator.set(i * 2, i + 0.1f);
-          mutator.set(i * 2 + 1, i + 10.1f);
+          nested.set(i * 2, i + 0.1f);
+          nested.set(i * 2 + 1, i + 10.1f);
         }
       }
       from.getMutator().setValueCount(10);

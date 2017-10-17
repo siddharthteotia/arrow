@@ -294,17 +294,17 @@ public class NullableDecimalVector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, int startField, ArrowBuf bufferField ) {
+   public void set(int index, int isSet, int start, ArrowBuf buffer) {
       if (isSet > 0) {
-         set(index, startField, bufferField);
+         set(index, start, buffer);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, int startField, ArrowBuf bufferField) {
+   public void setSafe(int index, int isSet, int start, ArrowBuf buffer) {
       handleSafe(index);
-      set(index, isSet, startField, bufferField);
+      set(index, isSet, start, buffer);
    }
 
 
@@ -354,7 +354,7 @@ public class NullableDecimalVector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableBigIntVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableDecimalVector.this);
       }
    }
 }

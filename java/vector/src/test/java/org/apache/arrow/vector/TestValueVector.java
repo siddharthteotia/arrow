@@ -923,32 +923,31 @@ public class TestValueVector {
 
     // Create a new value vector for 1024 integers.
     try (final NullableVarBinaryVector vector = newNullableVarBinaryVector(EMPTY_SCHEMA_PATH, allocator)) {
-      final NullableVarBinaryVector.Mutator m = vector.getMutator();
       vector.allocateNew(1024 * 10, 1024);
 
-      m.set(0, STR1);
-      m.set(1, STR2);
-      m.set(2, STR3);
-      m.setSafe(3, STR3, 1, STR3.length - 1);
-      m.setSafe(4, STR3, 2, STR3.length - 2);
+      vector.set(0, STR1);
+      vector.set(1, STR2);
+      vector.set(2, STR3);
+      vector.setSafe(3, STR3, 1, STR3.length - 1);
+      vector.setSafe(4, STR3, 2, STR3.length - 2);
       ByteBuffer STR3ByteBuffer = ByteBuffer.wrap(STR3);
-      m.setSafe(5, STR3ByteBuffer, 1, STR3.length - 1);
-      m.setSafe(6, STR3ByteBuffer, 2, STR3.length - 2);
+      vector.setSafe(5, STR3ByteBuffer, 1, STR3.length - 1);
+      vector.setSafe(6, STR3ByteBuffer, 2, STR3.length - 2);
 
       // Check the sample strings.
       final NullableVarBinaryVector.Accessor accessor = vector.getAccessor();
-      assertArrayEquals(STR1, accessor.get(0));
-      assertArrayEquals(STR2, accessor.get(1));
-      assertArrayEquals(STR3, accessor.get(2));
-      assertArrayEquals(Arrays.copyOfRange(STR3, 1, STR3.length), accessor.get(3));
-      assertArrayEquals(Arrays.copyOfRange(STR3, 2, STR3.length), accessor.get(4));
-      assertArrayEquals(Arrays.copyOfRange(STR3, 1, STR3.length), accessor.get(5));
-      assertArrayEquals(Arrays.copyOfRange(STR3, 2, STR3.length), accessor.get(6));
+      assertArrayEquals(STR1, vector.get(0));
+      assertArrayEquals(STR2, vector.get(1));
+      assertArrayEquals(STR3, vector.get(2));
+      assertArrayEquals(Arrays.copyOfRange(STR3, 1, STR3.length), vector.get(3));
+      assertArrayEquals(Arrays.copyOfRange(STR3, 2, STR3.length), vector.get(4));
+      assertArrayEquals(Arrays.copyOfRange(STR3, 1, STR3.length), vector.get(5));
+      assertArrayEquals(Arrays.copyOfRange(STR3, 2, STR3.length), vector.get(6));
 
       // Ensure null value throws.
       boolean b = false;
       try {
-        vector.getAccessor().get(7);
+        vector.get(7);
       } catch (IllegalStateException e) {
         b = true;
       } finally {

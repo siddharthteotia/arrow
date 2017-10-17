@@ -19,35 +19,38 @@
 
 package org.apache.arrow.vector;
 
+import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.DateDayReaderImpl;
+import org.apache.arrow.vector.complex.impl.BitReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.DateDayHolder;
-import org.apache.arrow.vector.holders.NullableDateDayHolder;
+import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.OversizedAllocationException;
 import org.apache.arrow.vector.util.TransferPair;
-import org.slf4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * NullableIntVector implements a fixed width (4 bytes) vector of
- * integer values which could be null. A validity buffer (bit vector) is
- * maintained to track which elements in the vector are null.
+ * NullableBitVector implements a fixed width (1 bit) vector of
+ * boolean values which could be null. Each value in the vector corresponds
+ * to a single bit in the underlying data stream backing the vector.
  */
-public class NullableDateDayVector extends BaseNullableFixedWidthVector {
+public class NullableBitVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableDateDayVector.class);
-   private static final byte TYPE_WIDTH = 4;
+           org.slf4j.LoggerFactory.getLogger(NullableBitVector.class);
    private final FieldReader reader;
 
-   public NullableDateDayVector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(Types.MinorType.DATEDAY.getType()),
+   public NullableBitVector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(Types.MinorType.BIT.getType()),
               allocator);
    }
 
-   public NullableDateDayVector(String name, FieldType fieldType, BufferAllocator allocator) {
-      super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new DateDayReaderImpl(NullableDateDayVector.this);
+   public NullableBitVector(String name, FieldType fieldType, BufferAllocator allocator) {
+      super(name, allocator, fieldType, (byte)0);
+      reader = new BitReaderImpl(NullableBitVector.this);
    }
 
    @Override
@@ -62,7 +65,109 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.DATEDAY;
+      return Types.MinorType.BIT;
+   }
+
+   @Override
+   public void setInitialCapacity(int valueCount) {
+      final int size = getSizeFromCount(valueCount);
+      if (size > MAX_ALLOCATION_SIZE) {
+         throw new OversizedAllocationException("Requested amount of memory is more than max allowed");
+      }
+      valueAllocationSizeInBytes = size;
+      validityAllocationSizeInBytes = size;
+   }
+
+   @Override
+   public int getValueCapacity(){
+      return (int)(validityBuffer.capacity() * 8L);
+   }
+
+   @Override
+   public int getBufferSizeFor(final int count) {
+      if (count == 0) { return 0; }
+      return 2 * getSizeFromCount(count);
+   }
+
+   @Override
+   public int getBufferSize() {
+     return getBufferSizeFor(valueCount);
+   }
+
+   public void splitAndTransferTo(int startIndex, int length,
+                                  BaseNullableFixedWidthVector target) {
+      compareTypes(target, "splitAndTransferTo");
+      target.clear();
+      target.validityBuffer = splitAndTransferBuffer(startIndex, length, target,
+                                 validityBuffer, target.validityBuffer);
+      target.valueBuffer = splitAndTransferBuffer(startIndex, length, target,
+                                 valueBuffer, target.valueBuffer);
+
+      target.setValueCount(length);
+   }
+
+   private ArrowBuf splitAndTransferBuffer(int startIndex, int length,
+                                               BaseNullableFixedWidthVector target,
+                                               ArrowBuf sourceBuffer, ArrowBuf destBuffer) {
+      assert startIndex + length <= valueCount;
+      int firstByteSource = BitVectorHelper.byteIndex(startIndex);
+      int lastByteSource = BitVectorHelper.byteIndex(valueCount - 1);
+      int byteSizeTarget = getSizeFromCount(length);
+      int offset = startIndex % 8;
+
+      if (length > 0) {
+         if (offset == 0) {
+            /* slice */
+            if (destBuffer != null) {
+               destBuffer.release();
+            }
+            destBuffer = destBuffer.slice(firstByteSource, byteSizeTarget);
+            destBuffer.retain(1);
+         }
+         else {
+            /* Copy data
+             * When the first bit starts from the middle of a byte (offset != 0),
+             * copy data from src BitVector.
+             * Each byte in the target is composed by a part in i-th byte,
+             * another part in (i+1)-th byte.
+             */
+            destBuffer = allocator.buffer(byteSizeTarget);
+            destBuffer.readerIndex(0);
+            destBuffer.setZero(0, destBuffer.capacity());
+
+            for (int i = 0; i < byteSizeTarget - 1; i++) {
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(sourceBuffer, firstByteSource + i, offset);
+               byte b2 = BitVectorHelper.getBitsFromNextByte(sourceBuffer, firstByteSource + i + 1, offset);
+
+               destBuffer.setByte(i, (b1 + b2));
+            }
+
+            /* Copying the last piece is done in the following manner:
+             * if the source vector has 1 or more bytes remaining, we copy
+             * the last piece as a byte formed by shifting data
+             * from the current byte and the next byte.
+             *
+             * if the source vector has no more bytes remaining
+             * (we are at the last byte), we copy the last piece as a byte
+             * by shifting data from the current byte.
+             */
+            if((firstByteSource + byteSizeTarget - 1) < lastByteSource) {
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(sourceBuffer,
+                       firstByteSource + byteSizeTarget - 1, offset);
+               byte b2 = BitVectorHelper.getBitsFromNextByte(sourceBuffer,
+                       firstByteSource + byteSizeTarget, offset);
+
+               destBuffer.setByte(byteSizeTarget - 1, b1 + b2);
+            }
+            else {
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(sourceBuffer,
+                       firstByteSource + byteSizeTarget - 1, offset);
+               destBuffer.setByte(byteSizeTarget - 1, b1);
+            }
+         }
+      }
+
+      return destBuffer;
    }
 
 
@@ -72,6 +177,12 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     *                                                                *
     ******************************************************************/
 
+   private int getBit(int index) {
+      final int byteIndex = index >> 3;
+      final byte b = valueBuffer.getByte(byteIndex);
+      final int bitIndex = index & 7;
+      return Long.bitCount(b & (1L << bitIndex));
+   }
 
    /**
     * Get the element at the given index from the vector.
@@ -83,7 +194,7 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
       if(isSet(index) == 0) {
          throw new IllegalStateException("Value at index is null");
       }
-      return valueBuffer.getInt(index * TYPE_WIDTH);
+      return getBit(index);
    }
 
    /**
@@ -93,13 +204,13 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableDateDayHolder holder){
+   public void get(int index, NullableBitHolder holder){
       if(isSet(index) == 0) {
          holder.isSet = 0;
          return;
       }
       holder.isSet = 1;
-      holder.value = valueBuffer.getInt(index * TYPE_WIDTH);
+      holder.value = getBit(index);
    }
 
    /**
@@ -108,21 +219,21 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Integer getObject(int index) {
+   public Boolean getObject(int index) {
       if (isSet(index) == 0) {
          return null;
       } else {
-         return get(index);
+         return new Boolean (getBit(index) != 0);
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableDateDayVector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableBitVector from) {
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableDateDayVector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableBitVector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -135,10 +246,6 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     ******************************************************************/
 
 
-   private void setValue(int index, int value) {
-      valueBuffer.setInt(index * TYPE_WIDTH, value);
-   }
-
    /**
     * Set the element at the given index to the given value.
     *
@@ -147,7 +254,11 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     */
    public void set(int index, int value) {
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
-      setValue(index, value);
+      if (value != 0) {
+         BitVectorHelper.setValidityBitToOne(valueBuffer, index);
+      } else {
+         BitVectorHelper.setValidityBit(valueBuffer, index, 0);
+      }
    }
 
    /**
@@ -158,13 +269,17 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableDateDayHolder holder) throws IllegalArgumentException {
+   public void set(int index, NullableBitHolder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
       else if(holder.isSet > 0) {
          BitVectorHelper.setValidityBitToOne(validityBuffer, index);
-         setValue(index, holder.value);
+         if (holder.value != 0) {
+            BitVectorHelper.setValidityBitToOne(valueBuffer, index);
+         } else {
+            BitVectorHelper.setValidityBit(valueBuffer, index, 0);
+         }
       }
       else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
@@ -177,9 +292,13 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, DateDayHolder holder){
+   public void set(int index, BitHolder holder) {
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
-      setValue(index, holder.value);
+      if (holder.value != 0) {
+         BitVectorHelper.setValidityBitToOne(valueBuffer, index);
+      } else {
+         BitVectorHelper.setValidityBit(valueBuffer, index, 0);
+      }
    }
 
    /**
@@ -196,27 +315,27 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
    }
 
    /**
-    * Same as {@link #set(int, NullableDateDayHolder)} except that it handles the
+    * Same as {@link #set(int, NullableBitHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableDateDayHolder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableBitHolder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, DateDayHolder)} except that it handles the
+    * Same as {@link #set(int, BitHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, DateDayHolder holder){
+   public void setSafe(int index, BitHolder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -262,22 +381,22 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableDateDayVector)to);
+      return new TransferImpl((NullableBitVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableDateDayVector to;
+      NullableBitVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableDateDayVector(ref, field.getFieldType(), allocator);
+         to = new NullableBitVector(ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableDateDayVector to){
+      public TransferImpl(NullableBitVector to){
          this.to = to;
       }
 
       @Override
-      public NullableDateDayVector getTo(){
+      public NullableBitVector getTo(){
          return to;
       }
 
@@ -293,7 +412,7 @@ public class NullableDateDayVector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableDateDayVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableBitVector.this);
       }
    }
 }

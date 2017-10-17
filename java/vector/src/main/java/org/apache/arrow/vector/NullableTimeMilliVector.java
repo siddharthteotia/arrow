@@ -37,7 +37,7 @@ import org.slf4j.Logger;
  */
 public class NullableTimeMilliVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableIntVector.class);
+           org.slf4j.LoggerFactory.getLogger(NullableTimeMilliVector.class);
    private static final byte TYPE_WIDTH = 4;
    private final FieldReader reader;
 
@@ -236,17 +236,17 @@ public class NullableTimeMilliVector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, int valueField ) {
+   public void set(int index, int isSet, int value) {
       if (isSet > 0) {
-         set(index, valueField);
+         set(index, value);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, int valueField ) {
+   public void setSafe(int index, int isSet, int value) {
       handleSafe(index);
-      set(index, isSet, valueField);
+      set(index, isSet, value);
    }
 
 

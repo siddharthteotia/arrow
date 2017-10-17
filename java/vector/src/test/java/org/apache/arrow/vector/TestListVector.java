@@ -147,26 +147,26 @@ public class TestListVector {
 
       /* write [10, 11, 12] to the list vector at index */
       bitVector.getMutator().setSafe(index, 1);
-      dataVector.getMutator().setSafe(0, 1, 10);
-      dataVector.getMutator().setSafe(1, 1, 11);
-      dataVector.getMutator().setSafe(2, 1, 12);
+      dataVector.setSafe(0, 1, 10);
+      dataVector.setSafe(1, 1, 11);
+      dataVector.setSafe(2, 1, 12);
       offsetVector.getMutator().setSafe(index + 1, 3);
 
       index += 1;
 
       /* write [13, 14] to the list vector at index 1 */
       bitVector.getMutator().setSafe(index, 1);
-      dataVector.getMutator().setSafe(3, 1, 13);
-      dataVector.getMutator().setSafe(4, 1, 14);
+      dataVector.setSafe(3, 1, 13);
+      dataVector.setSafe(4, 1, 14);
       offsetVector.getMutator().setSafe(index + 1, 5);
 
       index += 1;
 
       /* write [15, 16, 17] to the list vector at index 2 */
       bitVector.getMutator().setSafe(index, 1);
-      dataVector.getMutator().setSafe(5, 1, 15);
-      dataVector.getMutator().setSafe(6, 1, 16);
-      dataVector.getMutator().setSafe(7, 1, 17);
+      dataVector.setSafe(5, 1, 15);
+      dataVector.setSafe(6, 1, 16);
+      dataVector.setSafe(7, 1, 17);
       offsetVector.getMutator().setSafe(index + 1, 8);
 
       /* check current lastSet */

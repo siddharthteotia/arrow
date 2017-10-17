@@ -21,29 +21,28 @@ package org.apache.arrow.vector;
 
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.VarCharReaderImpl;
+import org.apache.arrow.vector.complex.impl.VarBinaryReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.VarCharHolder;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
+import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
 import java.nio.ByteBuffer;
 
-public class NullableVarCharVector extends BaseNullableVariableWidthVector {
+public class NullableVarBinaryVector extends BaseNullableVariableWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableVarCharVector.class);
+           org.slf4j.LoggerFactory.getLogger(NullableVarBinaryVector.class);
    private final FieldReader reader;
 
-   public NullableVarCharVector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()), allocator);
+   public NullableVarBinaryVector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(Types.MinorType.VARBINARY.getType()), allocator);
    }
 
-   public NullableVarCharVector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableVarBinaryVector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType);
-      reader = new VarCharReaderImpl(NullableVarCharVector.this);
+      reader = new VarBinaryReaderImpl(NullableVarBinaryVector.this);
    }
 
    @Override
@@ -58,7 +57,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.VARCHAR;
+      return Types.MinorType.VARBINARY;
    }
 
 
@@ -92,18 +91,16 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
     * Get the variable length element at specified index as Text.
     *
     * @param index   position of element to get
-    * @return Text object for non-null element, null otherwise
+    * @return byte array for non-null element, null otherwise
     */
-   public Text getObject(int index) {
-      Text result = new Text();
+   public byte[] getObject(int index) {
       byte[] b;
       try {
          b = get(index);
       } catch (IllegalStateException e) {
          return null;
       }
-      result.set(b);
-      return result;
+      return b;
    }
 
    /**
@@ -130,7 +127,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
     * @param index   position of element to get
     * @param holder  data holder to be populated by this function
     */
-   public void get(int index, NullableVarCharHolder holder){
+   public void get(int index, NullableVarBinaryHolder holder){
       assert index >= 0;
       if(isSet(index) == 0) {
          holder.isSet = 0;
@@ -155,7 +152,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
 
 
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableVarCharVector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableVarBinaryVector from) {
       fillHoles(thisIndex);
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
@@ -163,7 +160,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableVarCharVector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableVarBinaryVector from) {
       fillEmpties(thisIndex);
       if (from.isSet(fromIndex) != 0) {
          setSafe(thisIndex, from.get(fromIndex));
@@ -288,7 +285,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
     * @param index   position of the element to set
     * @param holder  holder that carries data buffer.
     */
-   public void set(int index, VarCharHolder holder) {
+   public void set(int index, VarBinaryHolder holder) {
       assert index >= 0;
       fillHoles(index);
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
@@ -300,14 +297,14 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
    }
 
    /**
-    * Same as {@link #set(int, VarCharHolder)} except that it handles the
+    * Same as {@link #set(int, VarBinaryHolder)} except that it handles the
     * case where index and length of new element are beyond the existing
     * capacity of the vector.
     *
     * @param index   position of the element to set
     * @param holder  holder that carries data buffer.
     */
-   public void setSafe(int index, VarCharHolder holder) {
+   public void setSafe(int index, VarBinaryHolder holder) {
       assert index >= 0;
       final int dataLength = holder.end - holder.start;
       fillEmpties(index);
@@ -326,7 +323,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
     * @param index   position of the element to set
     * @param holder  holder that carries data buffer.
     */
-   public void set(int index, NullableVarCharHolder holder) {
+   public void set(int index, NullableVarBinaryHolder holder) {
       assert index >= 0;
       fillHoles(index);
       BitVectorHelper.setValidityBit(validityBuffer, index, holder.isSet);
@@ -338,14 +335,14 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
    }
 
    /**
-    * Same as {@link #set(int, NullableVarCharHolder)} except that it handles the
+    * Same as {@link #set(int, NullableVarBinaryHolder)} except that it handles the
     * case where index and length of new element are beyond the existing
     * capacity of the vector.
     *
     * @param index   position of the element to set
     * @param holder  holder that carries data buffer.
     */
-   public void setSafe(int index, NullableVarCharHolder holder) {
+   public void setSafe(int index, NullableVarBinaryHolder holder) {
       assert index >= 0;
       final int dataLength = holder.end - holder.start;
       fillEmpties(index);
@@ -414,22 +411,22 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableVarCharVector)to);
+      return new TransferImpl((NullableVarBinaryVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableVarCharVector to;
+      NullableVarBinaryVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableVarCharVector(ref, field.getFieldType(), allocator);
+         to = new NullableVarBinaryVector(ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableVarCharVector to){
+      public TransferImpl(NullableVarBinaryVector to){
          this.to = to;
       }
 
       @Override
-      public NullableVarCharVector getTo(){
+      public NullableVarBinaryVector getTo(){
          return to;
       }
 
@@ -445,7 +442,7 @@ public class NullableVarCharVector extends BaseNullableVariableWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableVarCharVector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableVarBinaryVector.this);
       }
    }
 }

@@ -27,7 +27,6 @@ import org.apache.arrow.vector.holders.NullableUInt1Holder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
-import org.slf4j.Logger;
 
 /**
  * NullableUInt1Vector implements a fixed width (1 bytes) vector of
@@ -262,17 +261,17 @@ public class NullableUInt1Vector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, byte valueField ) {
+   public void set(int index, int isSet, byte value) {
       if (isSet > 0) {
-         set(index, valueField);
+         set(index, value);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, byte valueField ) {
+   public void setSafe(int index, int isSet, byte value) {
       handleSafe(index);
-      set(index, isSet, valueField);
+      set(index, isSet, value);
    }
 
 

@@ -39,6 +39,7 @@ public class NullableIntervalDayVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
            org.slf4j.LoggerFactory.getLogger(NullableIntervalDayVector.class);
    private static final byte TYPE_WIDTH = 8;
+   private static final byte MILLISECOND_OFFSET = 4;
    private final FieldReader reader;
 
    public NullableIntervalDayVector(String name, BufferAllocator allocator) {
@@ -102,7 +103,7 @@ public class NullableIntervalDayVector extends BaseNullableFixedWidthVector {
       final int startIndex = index * TYPE_WIDTH;
       holder.isSet = 1;
       holder.days = valueBuffer.getInt(startIndex);
-      holder.milliseconds = valueBuffer.getInt(startIndex + 4);
+      holder.milliseconds = valueBuffer.getInt(startIndex + MILLISECOND_OFFSET);
    }
 
    /**
@@ -117,7 +118,7 @@ public class NullableIntervalDayVector extends BaseNullableFixedWidthVector {
       } else {
          final int startIndex = index * TYPE_WIDTH;
          final int days = valueBuffer.getInt(startIndex);
-         final int milliseconds = valueBuffer.getInt(startIndex + 4);
+         final int milliseconds = valueBuffer.getInt(startIndex + MILLISECOND_OFFSET);
          final Period p = new Period();
          return p.plusDays(days).plusMillis(milliseconds);
       }
@@ -132,10 +133,10 @@ public class NullableIntervalDayVector extends BaseNullableFixedWidthVector {
    }
 
    private StringBuilder getAsStringBuilderHelper(int index) {
-      final int startIndex = index * 8;
+      final int startIndex = index * TYPE_WIDTH;
 
       final int  days = valueBuffer.getInt(startIndex);
-      int millis = valueBuffer.getInt(startIndex + 4);
+      int millis = valueBuffer.getInt(startIndex + MILLISECOND_OFFSET);
 
       final int hours = millis / (org.apache.arrow.vector.util.DateUtility.hoursToMillis);
       millis = millis % (org.apache.arrow.vector.util.DateUtility.hoursToMillis);
@@ -199,7 +200,7 @@ public class NullableIntervalDayVector extends BaseNullableFixedWidthVector {
       final int offsetIndex = index * TYPE_WIDTH;
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       valueBuffer.setInt(offsetIndex, days);
-      valueBuffer.setInt((offsetIndex + 4), milliseconds);
+      valueBuffer.setInt((offsetIndex + MILLISECOND_OFFSET), milliseconds);
    }
 
    /**
@@ -298,17 +299,17 @@ public class NullableIntervalDayVector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, int daysField, int millisecondsField) {
+   public void set(int index, int isSet, int days, int milliseconds) {
       if (isSet > 0) {
-         set(index, daysField, millisecondsField);
+         set(index, days, milliseconds);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, int daysField, int millisecondsField) {
+   public void setSafe(int index, int isSet, int days, int milliseconds) {
       handleSafe(index);
-      set(index, isSet, daysField, millisecondsField);
+      set(index, isSet, days, milliseconds);
    }
 
 

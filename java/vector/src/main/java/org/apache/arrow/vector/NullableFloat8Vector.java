@@ -27,7 +27,6 @@ import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
-import org.slf4j.Logger;
 
 /**
  * NullableFloat8Vector implements a fixed width vector (8 bytes) of
@@ -234,17 +233,17 @@ public class NullableFloat8Vector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, double valueField ) {
+   public void set(int index, int isSet, double value) {
       if (isSet > 0) {
-         set(index, valueField);
+         set(index, value);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, double valueField ) {
+   public void setSafe(int index, int isSet, double value) {
       handleSafe(index);
-      set(index, isSet, valueField);
+      set(index, isSet, value);
    }
 
 

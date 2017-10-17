@@ -57,4 +57,12 @@ class BitVectorHelper {
       }
       validityBuffer.setByte(byteIndex, currentByte);
    }
+
+   protected static byte getBitsFromCurrentByte(final ArrowBuf data, final int index, final int offset) {
+      return (byte)((data.getByte(index) & 0xFF) >>> offset);
+   }
+
+   protected static byte getBitsFromNextByte(ArrowBuf data, int index, int offset) {
+      return (byte)((data.getByte(index) << (8 - offset)));
+   }
 }

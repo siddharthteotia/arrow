@@ -546,8 +546,8 @@ public abstract class BaseNullableVariableWidthVector extends BaseValueVector
             target.allocateValidityBuffer(byteSizeTarget);
 
             for (int i = 0; i < byteSizeTarget - 1; i++) {
-               byte b1 = getBitsFromCurrentByte(this.validityBuffer, firstByteSource + i, offset);
-               byte b2 = getBitsFromNextByte(this.validityBuffer, firstByteSource + i + 1, offset);
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(this.validityBuffer, firstByteSource + i, offset);
+               byte b2 = BitVectorHelper.getBitsFromNextByte(this.validityBuffer, firstByteSource + i + 1, offset);
 
                target.validityBuffer.setByte(i, (b1 + b2));
             }
@@ -562,15 +562,15 @@ public abstract class BaseNullableVariableWidthVector extends BaseValueVector
              * by shifting data from the current byte.
              */
             if((firstByteSource + byteSizeTarget - 1) < lastByteSource) {
-               byte b1 = getBitsFromCurrentByte(this.validityBuffer,
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(this.validityBuffer,
                        firstByteSource + byteSizeTarget - 1, offset);
-               byte b2 = getBitsFromNextByte(this.validityBuffer,
+               byte b2 = BitVectorHelper.getBitsFromNextByte(this.validityBuffer,
                        firstByteSource + byteSizeTarget, offset);
 
                target.validityBuffer.setByte(byteSizeTarget - 1, b1 + b2);
             }
             else {
-               byte b1 = getBitsFromCurrentByte(this.validityBuffer,
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(this.validityBuffer,
                        firstByteSource + byteSizeTarget - 1, offset);
                target.validityBuffer.setByte(byteSizeTarget - 1, b1);
             }
@@ -578,13 +578,6 @@ public abstract class BaseNullableVariableWidthVector extends BaseValueVector
       }
    }
 
-   private static byte getBitsFromCurrentByte(ArrowBuf data, int index, int offset) {
-      return (byte)((data.getByte(index) & 0xFF) >>> offset);
-   }
-
-   private static byte getBitsFromNextByte(ArrowBuf data, int index, int offset) {
-      return (byte)((data.getByte(index) << (8 - offset)));
-   }
 
 
    /******************************************************************

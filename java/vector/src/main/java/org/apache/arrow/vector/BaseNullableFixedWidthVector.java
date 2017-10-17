@@ -39,8 +39,8 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
         implements FixedWidthVector, FieldVector {
    private final byte typeWidth;
 
-   private int valueAllocationSizeInBytes;
-   private int validityAllocationSizeInBytes;
+   protected int valueAllocationSizeInBytes;
+   protected int validityAllocationSizeInBytes;
 
    protected final Field field;
    private int allocationMonitor;
@@ -52,14 +52,29 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
                                        FieldType fieldType, final byte typeWidth) {
       super(name, allocator);
       this.typeWidth = typeWidth;
-      valueAllocationSizeInBytes = INITIAL_VALUE_ALLOCATION * typeWidth;
-      validityAllocationSizeInBytes = getSizeFromCount(INITIAL_VALUE_ALLOCATION);
       field = new Field(name, fieldType, null);
       valueCount = 0;
       allocationMonitor = 0;
       validityBuffer = allocator.getEmpty();
       valueBuffer = allocator.getEmpty();
+      if (typeWidth > 0) {
+         valueAllocationSizeInBytes = INITIAL_VALUE_ALLOCATION * typeWidth;
+         validityAllocationSizeInBytes = getSizeFromCount(INITIAL_VALUE_ALLOCATION);
+      } else {
+         /* specialized handling for NullableBitVector */
+         valueAllocationSizeInBytes = getSizeFromCount(INITIAL_VALUE_ALLOCATION);
+         validityAllocationSizeInBytes = valueAllocationSizeInBytes;
+      }
    }
+
+   /**
+    * Specialized constructor for NullableBitVector.
+    * NullableBitVector overrides some methods from the base class. In
+    * other words, unlike other fixed width vector, NullableBitVector
+    * does not leverage some of the functionality from this base class.
+    * Methods which don't deal with manipulating the data buffer are
+    * overridden by NullableBitVector.
+    */
 
    /* TODO:
     * Determine how writerIndex and readerIndex need to be used. Right now we
@@ -150,12 +165,10 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
       return Math.min(getValueBufferValueCapacity(), getValidityBufferValueCapacity());
    }
 
-   /* for test purposes */
    private int getValueBufferValueCapacity() {
       return (int)((valueBuffer.capacity() * 1.0)/typeWidth);
    }
 
-   /* for test purposes */
    private int getValidityBufferValueCapacity() {
       return (int)(validityBuffer.capacity() * 8L);
    }
@@ -241,6 +254,10 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
    public void allocateNew(int valueCount) {
       long valueBufferSize = valueCount * typeWidth;
       long validityBufferSize = getSizeFromCount(valueCount);
+      if (typeWidth == 0) {
+         /* specialized handling for NullableBitVector */
+         valueBufferSize = validityBufferSize;
+      }
 
       if (allocationMonitor > 10) {
          /* step down the default memory allocation since we have observed
@@ -421,7 +438,12 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
       validityBuffer.readerIndex(0);
       validityBuffer.writerIndex(getSizeFromCount(valueCount));
       valueBuffer.readerIndex(0);
-      valueBuffer.writerIndex(valueCount * typeWidth);
+      if (typeWidth == 0) {
+         /* specialized handling for NullableBitVector */
+         valueBuffer.writerIndex(getSizeFromCount(valueCount));
+      } else {
+         valueBuffer.writerIndex(valueCount * typeWidth);
+      }
 
       result.add(validityBuffer);
       result.add(valueBuffer);
@@ -456,6 +478,7 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
       target.clear();
       splitAndTransferValidityBuffer(startIndex, length, target);
       splitAndTransferValueBuffer(startIndex, length, target);
+
       target.setValueCount(length);
    }
 
@@ -476,7 +499,7 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
 
       if (length > 0) {
          if (offset == 0) {
-            // slice
+            /* slice */
             if (target.validityBuffer != null) {
                target.validityBuffer.release();
             }
@@ -493,8 +516,8 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
             target.allocateValidityBuffer(byteSizeTarget);
 
             for (int i = 0; i < byteSizeTarget - 1; i++) {
-               byte b1 = getBitsFromCurrentByte(this.validityBuffer, firstByteSource + i, offset);
-               byte b2 = getBitsFromNextByte(this.validityBuffer, firstByteSource + i + 1, offset);
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(this.validityBuffer, firstByteSource + i, offset);
+               byte b2 = BitVectorHelper.getBitsFromNextByte(this.validityBuffer, firstByteSource + i + 1, offset);
 
                target.validityBuffer.setByte(i, (b1 + b2));
             }
@@ -509,28 +532,20 @@ public abstract class BaseNullableFixedWidthVector extends BaseValueVector
              * by shifting data from the current byte.
              */
             if((firstByteSource + byteSizeTarget - 1) < lastByteSource) {
-               byte b1 = getBitsFromCurrentByte(this.validityBuffer,
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(this.validityBuffer,
                        firstByteSource + byteSizeTarget - 1, offset);
-               byte b2 = getBitsFromNextByte(this.validityBuffer,
+               byte b2 = BitVectorHelper.getBitsFromNextByte(this.validityBuffer,
                        firstByteSource + byteSizeTarget, offset);
 
                target.validityBuffer.setByte(byteSizeTarget - 1, b1 + b2);
             }
             else {
-               byte b1 = getBitsFromCurrentByte(this.validityBuffer,
+               byte b1 = BitVectorHelper.getBitsFromCurrentByte(this.validityBuffer,
                        firstByteSource + byteSizeTarget - 1, offset);
                target.validityBuffer.setByte(byteSizeTarget - 1, b1);
             }
          }
       }
-   }
-
-   private static byte getBitsFromCurrentByte(ArrowBuf data, int index, int offset) {
-      return (byte)((data.getByte(index) & 0xFF) >>> offset);
-   }
-
-   private static byte getBitsFromNextByte(ArrowBuf data, int index, int offset) {
-      return (byte)((data.getByte(index) << (8 - offset)));
    }
 
 

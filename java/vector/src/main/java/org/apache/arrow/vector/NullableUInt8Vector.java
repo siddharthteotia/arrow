@@ -36,7 +36,7 @@ import org.slf4j.Logger;
  */
 public class NullableUInt8Vector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableBigIntVector.class);
+           org.slf4j.LoggerFactory.getLogger(NullableUInt8Vector.class);
    private static final byte TYPE_WIDTH = 8;
    private final FieldReader reader;
 
@@ -234,17 +234,17 @@ public class NullableUInt8Vector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, long valueField ) {
+   public void set(int index, int isSet, long value) {
       if (isSet > 0) {
-         set(index, valueField);
+         set(index, value);
       } else {
          BitVectorHelper.setValidityBit(validityBuffer, index, 0);
       }
    }
 
-   public void setSafe(int index, int isSet, long valueField ) {
+   public void setSafe(int index, int isSet, long value) {
       handleSafe(index);
-      set(index, isSet, valueField);
+      set(index, isSet, value);
    }
 
 

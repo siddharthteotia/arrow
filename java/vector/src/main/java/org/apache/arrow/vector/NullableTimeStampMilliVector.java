@@ -20,33 +20,34 @@
 package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.Float4ReaderImpl;
+import org.apache.arrow.vector.complex.impl.TimeStampMilliReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.Float4Holder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.TimeStampMilliHolder;
+import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
+import org.joda.time.LocalDateTime;
 
 /**
- * NullableFloat4Vector implements a fixed width vector (4 bytes) of
- * float values which could be null. A validity buffer (bit vector) is
+ * NullableTimeStampMilliVector implements a fixed width vector (8 bytes) of
+ * timestamp values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
+public class NullableTimeStampMilliVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableFloat4Vector.class);
-   private static final byte TYPE_WIDTH = 4;
+           org.slf4j.LoggerFactory.getLogger(NullableTimeStampMilliVector.class);
+   private static final byte TYPE_WIDTH = 8;
    private final FieldReader reader;
 
-   public NullableFloat4Vector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(Types.MinorType.FLOAT4.getType()),
+   public NullableTimeStampMilliVector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(Types.MinorType.TIMESTAMPMILLI.getType()),
               allocator);
    }
 
-   public NullableFloat4Vector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableTimeStampMilliVector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new Float4ReaderImpl(NullableFloat4Vector.this);
+      reader = new TimeStampMilliReaderImpl(NullableTimeStampMilliVector.this);
    }
 
    @Override
@@ -61,7 +62,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.FLOAT4;
+      return Types.MinorType.TIMESTAMPMILLI;
    }
 
 
@@ -78,11 +79,11 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public float get(int index) throws IllegalStateException {
+   public long get(int index) throws IllegalStateException {
       if(isSet(index) == 0) {
          throw new IllegalStateException("Value at index is null");
       }
-      return valueBuffer.getFloat(index * TYPE_WIDTH);
+      return valueBuffer.getLong(index * TYPE_WIDTH);
    }
 
    /**
@@ -92,13 +93,13 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableFloat4Holder holder){
+   public void get(int index, NullableTimeStampMilliHolder holder){
       if(isSet(index) == 0) {
          holder.isSet = 0;
          return;
       }
       holder.isSet = 1;
-      holder.value = valueBuffer.getFloat(index * TYPE_WIDTH);
+      holder.value = valueBuffer.getLong(index * TYPE_WIDTH);
    }
 
    /**
@@ -107,21 +108,23 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Float getObject(int index) {
+   public LocalDateTime getObject(int index) {
       if (isSet(index) == 0) {
          return null;
       } else {
-         return get(index);
+         final long millis = get(index);
+         final org.joda.time.LocalDateTime localDateTime = new org.joda.time.LocalDateTime(millis, org.joda.time.DateTimeZone.UTC);
+         return localDateTime;
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableFloat4Vector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableTimeStampMilliVector from) {
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableFloat4Vector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableTimeStampMilliVector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -134,8 +137,8 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     ******************************************************************/
 
 
-   private void setValue(int index, float value) {
-      valueBuffer.setFloat(index * TYPE_WIDTH, value);
+   private void setValue(int index, long value) {
+      valueBuffer.setLong(index * TYPE_WIDTH, value);
    }
 
    /**
@@ -144,7 +147,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param value   value of element
     */
-   public void set(int index, float value) {
+   public void set(int index, long value) {
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, value);
    }
@@ -157,7 +160,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableFloat4Holder holder) throws IllegalArgumentException {
+   public void set(int index, NullableTimeStampMilliHolder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
@@ -176,46 +179,46 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, Float4Holder holder){
+   public void set(int index, TimeStampMilliHolder holder){
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, holder.value);
    }
 
    /**
-    * Same as {@link #set(int, float)} except that it handles the
+    * Same as {@link #set(int, long)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param value   value of element
     */
-   public void setSafe(int index, float value) {
+   public void setSafe(int index, long value) {
       handleSafe(index);
       set(index, value);
    }
 
    /**
-    * Same as {@link #set(int, NullableFloat4Holder)} except that it handles the
+    * Same as {@link #set(int, NullableTimeStampMilliHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableFloat4Holder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableTimeStampMilliHolder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, Float4Holder)} except that it handles the
+    * Same as {@link #set(int, TimeStampMilliHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, Float4Holder holder){
+   public void setSafe(int index, TimeStampMilliHolder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -233,7 +236,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, float value) {
+   public void set(int index, int isSet, long value) {
       if (isSet > 0) {
          set(index, value);
       } else {
@@ -241,7 +244,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void setSafe(int index, int isSet, float value) {
+   public void setSafe(int index, int isSet, long value) {
       handleSafe(index);
       set(index, isSet, value);
    }
@@ -261,22 +264,22 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableFloat4Vector)to);
+      return new TransferImpl((NullableTimeStampMilliVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableFloat4Vector to;
+      NullableTimeStampMilliVector  to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableFloat4Vector(ref, field.getFieldType(), allocator);
+         to = new NullableTimeStampMilliVector (ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableFloat4Vector to){
+      public TransferImpl(NullableTimeStampMilliVector to){
          this.to = to;
       }
 
       @Override
-      public NullableFloat4Vector getTo(){
+      public NullableTimeStampMilliVector  getTo(){
          return to;
       }
 
@@ -292,7 +295,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableFloat4Vector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableTimeStampMilliVector.this);
       }
    }
 }

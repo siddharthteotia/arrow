@@ -20,33 +20,33 @@
 package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.complex.impl.Float4ReaderImpl;
+import org.apache.arrow.vector.complex.impl.TinyIntReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.Float4Holder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.TinyIntHolder;
+import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
 
 /**
- * NullableFloat4Vector implements a fixed width vector (4 bytes) of
- * float values which could be null. A validity buffer (bit vector) is
+ * NullableTinyIntVector implements a fixed width (1 bytes) vector of
+ * integer values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
+public class NullableTinyIntVector extends BaseNullableFixedWidthVector {
    private static final org.slf4j.Logger logger =
-           org.slf4j.LoggerFactory.getLogger(NullableFloat4Vector.class);
-   private static final byte TYPE_WIDTH = 4;
+           org.slf4j.LoggerFactory.getLogger(NullableTinyIntVector.class);
+   private static final byte TYPE_WIDTH = 1;
    private final FieldReader reader;
 
-   public NullableFloat4Vector(String name, BufferAllocator allocator) {
-      this(name, FieldType.nullable(Types.MinorType.FLOAT4.getType()),
+   public NullableTinyIntVector(String name, BufferAllocator allocator) {
+      this(name, FieldType.nullable(Types.MinorType.TINYINT.getType()),
               allocator);
    }
 
-   public NullableFloat4Vector(String name, FieldType fieldType, BufferAllocator allocator) {
+   public NullableTinyIntVector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType, TYPE_WIDTH);
-      reader = new Float4ReaderImpl(NullableFloat4Vector.this);
+      reader = new TinyIntReaderImpl(NullableTinyIntVector.this);
    }
 
    @Override
@@ -61,7 +61,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
 
    @Override
    public Types.MinorType getMinorType() {
-      return Types.MinorType.FLOAT4;
+      return Types.MinorType.TINYINT;
    }
 
 
@@ -78,11 +78,11 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public float get(int index) throws IllegalStateException {
+   public byte get(int index) throws IllegalStateException {
       if(isSet(index) == 0) {
          throw new IllegalStateException("Value at index is null");
       }
-      return valueBuffer.getFloat(index * TYPE_WIDTH);
+      return valueBuffer.getByte(index * TYPE_WIDTH);
    }
 
    /**
@@ -92,13 +92,13 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     *
     * @param index   position of element
     */
-   public void get(int index, NullableFloat4Holder holder){
+   public void get(int index, NullableTinyIntHolder holder){
       if(isSet(index) == 0) {
          holder.isSet = 0;
          return;
       }
       holder.isSet = 1;
-      holder.value = valueBuffer.getFloat(index * TYPE_WIDTH);
+      holder.value = valueBuffer.getByte(index * TYPE_WIDTH);
    }
 
    /**
@@ -107,7 +107,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Float getObject(int index) {
+   public Byte getObject(int index) {
       if (isSet(index) == 0) {
          return null;
       } else {
@@ -115,13 +115,13 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableFloat4Vector from) {
+   public void copyFrom(int fromIndex, int thisIndex, NullableTinyIntVector from) {
       if (from.isSet(fromIndex) != 0) {
          set(thisIndex, from.get(fromIndex));
       }
    }
 
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableFloat4Vector from) {
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableTinyIntVector from) {
       handleSafe(thisIndex);
       copyFrom(fromIndex, thisIndex, from);
    }
@@ -134,8 +134,12 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     ******************************************************************/
 
 
-   private void setValue(int index, float value) {
-      valueBuffer.setFloat(index * TYPE_WIDTH, value);
+   private void setValue(int index, int value) {
+      valueBuffer.setByte(index * TYPE_WIDTH, value);
+   }
+
+   private void setValue(int index, byte value) {
+      valueBuffer.setByte(index * TYPE_WIDTH, value);
    }
 
    /**
@@ -144,7 +148,18 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param value   value of element
     */
-   public void set(int index, float value) {
+   public void set(int index, int value) {
+      BitVectorHelper.setValidityBitToOne(validityBuffer, index);
+      setValue(index, value);
+   }
+
+   /**
+    * Set the element at the given index to the given value.
+    *
+    * @param index   position of element
+    * @param value   value of element
+    */
+   public void set(int index, byte value) {
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, value);
    }
@@ -157,7 +172,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void set(int index, NullableFloat4Holder holder) throws IllegalArgumentException {
+   public void set(int index, NullableTinyIntHolder holder) throws IllegalArgumentException {
       if(holder.isSet < 0) {
          throw new IllegalArgumentException();
       }
@@ -176,46 +191,59 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void set(int index, Float4Holder holder){
+   public void set(int index, TinyIntHolder holder){
       BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       setValue(index, holder.value);
    }
 
    /**
-    * Same as {@link #set(int, float)} except that it handles the
+    * Same as {@link #set(int, int)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param value   value of element
     */
-   public void setSafe(int index, float value) {
+   public void setSafe(int index, int value) {
       handleSafe(index);
       set(index, value);
    }
 
    /**
-    * Same as {@link #set(int, NullableFloat4Holder)} except that it handles the
+    * Same as {@link #set(int, byte)} except that it handles the
+    * case when index is greater than or equal to existing
+    * value capacity {@link #getValueCapacity()}.
+    *
+    * @param index   position of element
+    * @param value   value of element
+    */
+   public void setSafe(int index, byte value) {
+      handleSafe(index);
+      set(index, value);
+   }
+
+   /**
+    * Same as {@link #set(int, NullableTinyIntHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  nullable data holder for value of element
     */
-   public void setSafe(int index, NullableFloat4Holder holder) throws IllegalArgumentException {
+   public void setSafe(int index, NullableTinyIntHolder holder) throws IllegalArgumentException {
       handleSafe(index);
       set(index, holder);
    }
 
    /**
-    * Same as {@link #set(int, Float4Holder)} except that it handles the
+    * Same as {@link #set(int, TinyIntHolder)} except that it handles the
     * case when index is greater than or equal to existing
     * value capacity {@link #getValueCapacity()}.
     *
     * @param index   position of element
     * @param holder  data holder for value of element
     */
-   public void setSafe(int index, Float4Holder holder){
+   public void setSafe(int index, TinyIntHolder holder){
       handleSafe(index);
       set(index, holder);
    }
@@ -233,7 +261,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
       BitVectorHelper.setValidityBit(validityBuffer, index, 0);
    }
 
-   public void set(int index, int isSet, float value) {
+   public void set(int index, int isSet, byte value) {
       if (isSet > 0) {
          set(index, value);
       } else {
@@ -241,7 +269,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void setSafe(int index, int isSet, float value) {
+   public void setSafe(int index, int isSet, byte value) {
       handleSafe(index);
       set(index, isSet, value);
    }
@@ -261,22 +289,22 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
 
    @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableFloat4Vector)to);
+      return new TransferImpl((NullableTinyIntVector)to);
    }
 
    private class TransferImpl implements TransferPair {
-      NullableFloat4Vector to;
+      NullableTinyIntVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableFloat4Vector(ref, field.getFieldType(), allocator);
+         to = new NullableTinyIntVector(ref, field.getFieldType(), allocator);
       }
 
-      public TransferImpl(NullableFloat4Vector to){
+      public TransferImpl(NullableTinyIntVector to){
          this.to = to;
       }
 
       @Override
-      public NullableFloat4Vector getTo(){
+      public NullableTinyIntVector getTo(){
          return to;
       }
 
@@ -292,7 +320,7 @@ public class NullableFloat4Vector extends BaseNullableFixedWidthVector {
 
       @Override
       public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableFloat4Vector.this);
+         to.copyFromSafe(fromIndex, toIndex, NullableTinyIntVector.this);
       }
    }
 }
