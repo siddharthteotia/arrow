@@ -190,7 +190,7 @@ public class NullableUInt8Vector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param value   value of element
     */
-   public void setSafe(int index, int value) {
+   public void setSafe(int index, long value) {
       handleSafe(index);
       set(index, value);
    }

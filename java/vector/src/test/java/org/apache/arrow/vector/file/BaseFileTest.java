@@ -209,11 +209,11 @@ public class BaseFileTest {
     Assert.assertEquals(count, root.getRowCount());
     printVectors(root.getFieldVectors());
     for (int i = 0; i < count; i++) {
-      long dateVal = ((NullableDateMilliVector) root.getVector("date")).getAccessor().get(i);
+      long dateVal = ((NullableDateMilliVector) root.getVector("date")).get(i);
       LocalDateTime dt = makeDateTimeFromCount(i);
       LocalDateTime dateExpected = dt.minusMillis(dt.getMillisOfDay());
       Assert.assertEquals(DateUtility.toMillis(dateExpected), dateVal);
-      long timeVal = ((NullableTimeMilliVector) root.getVector("time")).getAccessor().get(i);
+      long timeVal = ((NullableTimeMilliVector) root.getVector("time")).get(i);
       Assert.assertEquals(dt.getMillisOfDay(), timeVal);
       Object timestampMilliVal = root.getVector("timestamp-milli").getAccessor().getObject(i);
       Assert.assertEquals(dt, timestampMilliVal);
@@ -423,9 +423,9 @@ public class BaseFileTest {
     decimalVector3.allocateNew(count);
 
     for (int i = 0; i < count; i++) {
-      decimalVector1.getMutator().setSafe(i, new BigDecimal(BigInteger.valueOf(i), 3));
-      decimalVector2.getMutator().setSafe(i, new BigDecimal(BigInteger.valueOf(i * (1 << 10)), 2));
-      decimalVector3.getMutator().setSafe(i, new BigDecimal(BigInteger.valueOf(i * 1111111111111111L), 8));
+      decimalVector1.setSafe(i, new BigDecimal(BigInteger.valueOf(i), 3));
+      decimalVector2.setSafe(i, new BigDecimal(BigInteger.valueOf(i * (1 << 10)), 2));
+      decimalVector3.setSafe(i, new BigDecimal(BigInteger.valueOf(i * 1111111111111111L), 8));
     }
 
     decimalVector1.getMutator().setValueCount(count);
@@ -446,19 +446,19 @@ public class BaseFileTest {
 
     for (int i = 0; i < count; i++) {
       // Verify decimal 1 vector
-      BigDecimal readValue = decimalVector1.getAccessor().getObject(i);
+      BigDecimal readValue = decimalVector1.getObject(i);
       ArrowType.Decimal type = (ArrowType.Decimal) decimalVector1.getField().getType();
       BigDecimal genValue = new BigDecimal(BigInteger.valueOf(i), type.getScale());
       Assert.assertEquals(genValue, readValue);
 
       // Verify decimal 2 vector
-      readValue = decimalVector2.getAccessor().getObject(i);
+      readValue = decimalVector2.getObject(i);
       type = (ArrowType.Decimal) decimalVector2.getField().getType();
       genValue = new BigDecimal(BigInteger.valueOf(i * (1 << 10)), type.getScale());
       Assert.assertEquals(genValue, readValue);
 
       // Verify decimal 3 vector
-      readValue = decimalVector3.getAccessor().getObject(i);
+      readValue = decimalVector3.getObject(i);
       type = (ArrowType.Decimal) decimalVector3.getField().getType();
       genValue = new BigDecimal(BigInteger.valueOf(i * 1111111111111111L), type.getScale());
       Assert.assertEquals(genValue, readValue);
@@ -590,6 +590,6 @@ public class BaseFileTest {
 
     // NullableVarBinaryVector lastSet should be the index of last value
     NullableVarBinaryVector binaryVector = (NullableVarBinaryVector) listVector.getChildrenFromFields().get(0);
-    Assert.assertEquals(binaryVector.getMutator().getLastSet(), numVarBinaryValues - 1);
+    Assert.assertEquals(binaryVector.getLastSet(), numVarBinaryValues - 1);
   }
 }

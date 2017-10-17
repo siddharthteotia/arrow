@@ -436,11 +436,7 @@ public class UnionVector implements FieldVector {
           <#assign uncappedName = name?uncap_first/>
           <#if !minor.typeParams?? >
       case ${name?upper_case}:
-        <#if minor.class != "Int" && minor.class != "VarChar">
-          return get${name}Vector().getAccessor().getObject(index);
-        <#else>
           return get${name}Vector().getObject(index);
-        </#if>
           </#if>
         </#list>
       </#list>
@@ -534,11 +530,7 @@ public class UnionVector implements FieldVector {
         <#if !minor.typeParams?? >
     public void setSafe(int index, Nullable${name}Holder holder) {
       setType(index, MinorType.${name?upper_case});
-      <#if minor.class != "Int" && minor.class != "VarChar">
-        get${name}Vector().getMutator().setSafe(index, holder);
-      <#else>
-        get${name}Vector().setSafe(index, holder);
-      </#if>
+      get${name}Vector().setSafe(index, holder);
     }
 
         </#if>

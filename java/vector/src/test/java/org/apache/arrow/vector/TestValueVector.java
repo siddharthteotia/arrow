@@ -935,7 +935,6 @@ public class TestValueVector {
       vector.setSafe(6, STR3ByteBuffer, 2, STR3.length - 2);
 
       // Check the sample strings.
-      final NullableVarBinaryVector.Accessor accessor = vector.getAccessor();
       assertArrayEquals(STR1, vector.get(0));
       assertArrayEquals(STR2, vector.get(1));
       assertArrayEquals(STR3, vector.get(2));
@@ -1357,7 +1356,6 @@ public class TestValueVector {
       // Check valueCapacity is more than initial allocation
       assertEquals(1024 * 2, vector.getValueCapacity());
 
-      final NullableFloat4Vector.Accessor accessor = vector.getAccessor();
       assertEquals(100.1f, vector.get(0), 0);
       assertEquals(102.3f, vector.get(100), 0);
       assertEquals(104.5f, vector.get(1023), 0);

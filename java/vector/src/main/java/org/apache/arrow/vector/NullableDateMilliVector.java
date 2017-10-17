@@ -27,6 +27,8 @@ import org.apache.arrow.vector.holders.NullableDateMilliHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
+import org.joda.time.LocalDateTime;
+import org.joda.time.LocalDateTimes;
 import org.slf4j.Logger;
 
 /**
@@ -108,11 +110,13 @@ public class NullableDateMilliVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @return element at given index
     */
-   public Long getObject(int index) {
+   public LocalDateTime getObject(int index) {
       if (isSet(index) == 0) {
          return null;
       } else {
-         return get(index);
+         final long millis = get(index);
+         final LocalDateTime localDateTime = new org.joda.time.LocalDateTime(millis, org.joda.time.DateTimeZone.UTC);
+         return localDateTime;
       }
    }
 

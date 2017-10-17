@@ -48,16 +48,16 @@ public class NullableDecimalVector extends BaseNullableFixedWidthVector {
 
    public NullableDecimalVector(String name, BufferAllocator allocator,
                                 int precision, int scale) {
-      this(name, FieldType.nullable(Types.MinorType.DECIMAL.getType()),
-              allocator, precision, scale);
+      this(name, FieldType.nullable(new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(precision, scale)),
+              allocator);
    }
 
-   public NullableDecimalVector(String name, FieldType fieldType, BufferAllocator allocator,
-                                int precision, int scale) {
+   public NullableDecimalVector(String name, FieldType fieldType, BufferAllocator allocator) {
       super(name, allocator, fieldType, TYPE_WIDTH);
+      org.apache.arrow.vector.types.pojo.ArrowType.Decimal arrowType = (org.apache.arrow.vector.types.pojo.ArrowType.Decimal)fieldType.getType();
       reader = new DecimalReaderImpl(NullableDecimalVector.this);
-      this.precision = precision;
-      this.scale = scale;
+      this.precision = arrowType.getPrecision();
+      this.scale = arrowType.getScale();
    }
 
    @Override
@@ -329,8 +329,8 @@ public class NullableDecimalVector extends BaseNullableFixedWidthVector {
       NullableDecimalVector to;
 
       public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableDecimalVector(ref, field.getFieldType(), allocator,
-                 NullableDecimalVector.this.precision, NullableDecimalVector.this.scale);
+         to = new NullableDecimalVector(ref, allocator, NullableDecimalVector.this.precision,
+                 NullableDecimalVector.this.scale);
       }
 
       public TransferImpl(NullableDecimalVector to){

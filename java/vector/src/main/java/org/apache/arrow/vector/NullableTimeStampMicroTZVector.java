@@ -280,7 +280,7 @@ public class NullableTimeStampMicroTZVector extends BaseNullableFixedWidthVector
       }
 
       @Override
-      public NullableTimeStampMilliTZVector  getTo(){
+      public NullableTimeStampMicroTZVector  getTo(){
          return to;
       }
 
