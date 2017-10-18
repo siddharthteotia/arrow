@@ -56,8 +56,6 @@ public class UnionVector implements FieldVector {
 
   private String name;
   private BufferAllocator allocator;
-  private Accessor accessor = new Accessor();
-  private Mutator mutator = new Mutator();
   int valueCount;
 
   MapVector internalMap;
@@ -300,7 +298,7 @@ public class UnionVector implements FieldVector {
   public void copyFrom(int inIndex, int outIndex, UnionVector from) {
     from.getReader().setPosition(inIndex);
     getWriter().setPosition(outIndex);
-    ComplexCopier.copy(from.reader, mutator.writer);
+    ComplexCopier.copy(from.reader, writer);
   }
 
   public void copyFromSafe(int inIndex, int outIndex, UnionVector from) {
@@ -347,7 +345,7 @@ public class UnionVector implements FieldVector {
     public void splitAndTransfer(int startIndex, int length) {
       internalMapVectorTransferPair.splitAndTransfer(startIndex, length);
       typeVectorTransferPair.splitAndTransfer(startIndex, length);
-      to.getMutator().setValueCount(length);
+      to.setValueCount(length);
     }
 
     @Override
@@ -363,12 +361,12 @@ public class UnionVector implements FieldVector {
 
   @Override
   public Accessor getAccessor() {
-    return accessor;
+    throw new UnsupportedOperationException("accessor is not needed for UNION");
   }
 
   @Override
   public Mutator getMutator() {
-    return mutator;
+    throw new UnsupportedOperationException("mutator is not needed for UNION");
   }
 
   @Override
@@ -380,10 +378,10 @@ public class UnionVector implements FieldVector {
   }
 
   public FieldWriter getWriter() {
-    if (mutator.writer == null) {
-      mutator.writer = new UnionWriter(this);
+    if (writer == null) {
+      writer = new UnionWriter(this);
     }
-    return mutator.writer;
+    return writer;
   }
 
   @Override
@@ -421,9 +419,7 @@ public class UnionVector implements FieldVector {
     return vectors.iterator();
   }
 
-  public class Accessor extends BaseValueVector.BaseAccessor {
 
-    @Override
     public Object getObject(int index) {
       int type = typeVector.getAccessor().get(index);
       switch (MinorType.values()[type]) {
@@ -441,9 +437,9 @@ public class UnionVector implements FieldVector {
         </#list>
       </#list>
       case MAP:
-        return getMap().getAccessor().getObject(index);
+        return getMap().getObject(index);
       case LIST:
-        return getList().getAccessor().getObject(index);
+        return getList().getObject(index);
       default:
         throw new UnsupportedOperationException("Cannot support type: " + MinorType.values()[type]);
       }
@@ -462,12 +458,10 @@ public class UnionVector implements FieldVector {
       holder.reader = reader;
     }
 
-    @Override
     public int getValueCount() {
       return valueCount;
     }
 
-    @Override
     public boolean isNull(int index) {
       return typeVector.getAccessor().get(index) == 0;
     }
@@ -475,17 +469,13 @@ public class UnionVector implements FieldVector {
     public int isSet(int index) {
       return isNull(index) ? 0 : 1;
     }
-  }
-
-  public class Mutator extends BaseValueVector.BaseMutator {
 
     UnionWriter writer;
 
-    @Override
     public void setValueCount(int valueCount) {
       UnionVector.this.valueCount = valueCount;
       typeVector.getMutator().setValueCount(valueCount);
-      internalMap.getMutator().setValueCount(valueCount);
+      internalMap.setValueCount(valueCount);
     }
 
     public void setSafe(int index, UnionHolder holder) {
@@ -542,15 +532,5 @@ public class UnionVector implements FieldVector {
     }
 
     @Override
-    public void reset() { }
-
-    @Override
-    public void generateTestData(int values) { }
-  }
-
-  public int getValueCount() { return 0; }
-
-  public void setValueCount(int valueCount) { }
-
-  public Object getObject(int index) { return null; }
+    public int getNullCount() { return 0; }
 }

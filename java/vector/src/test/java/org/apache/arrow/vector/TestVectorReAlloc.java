@@ -138,7 +138,7 @@ public class TestVectorReAlloc {
 
       vector.reAlloc();
       assertEquals(1024, vector.getValueCapacity());
-      assertNull(vector.getAccessor().getObject(513));
+      assertNull(vector.getObject(513));
     }
   }
 }

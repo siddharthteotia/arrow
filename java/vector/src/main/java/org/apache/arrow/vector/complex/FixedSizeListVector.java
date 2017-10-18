@@ -62,9 +62,6 @@ public class FixedSizeListVector extends BaseValueVector implements FieldVector,
 
   private UnionFixedSizeListReader reader;
 
-  private Mutator mutator = new Mutator();
-  private Accessor accessor = new Accessor();
-
   // deprecated, use FieldType or static constructor instead
   @Deprecated
   public FixedSizeListVector(String name,
@@ -139,12 +136,12 @@ public class FixedSizeListVector extends BaseValueVector implements FieldVector,
 
   @Override
   public Accessor getAccessor() {
-    return accessor;
+    throw new UnsupportedOperationException("accessor is not needed for FixedSizeList");
   }
 
   @Override
   public Mutator getMutator() {
-    return mutator;
+    throw new UnsupportedOperationException("mutator is not needed for FixedSizeList");
   }
 
   @Override
@@ -204,7 +201,7 @@ public class FixedSizeListVector extends BaseValueVector implements FieldVector,
 
   @Override
   public int getBufferSize() {
-    if (accessor.getValueCount() == 0) {
+    if (getValueCount() == 0) {
       return 0;
     }
     return bits.getBufferSize() + vector.getBufferSize();
@@ -316,62 +313,45 @@ public class FixedSizeListVector extends BaseValueVector implements FieldVector,
     throw new UnsupportedOperationException();
   }
 
-  public class Accessor extends BaseValueVector.BaseAccessor {
-
-    @Override
-    public Object getObject(int index) {
-      if (isNull(index)) {
-        return null;
-      }
-      final List<Object> vals = new JsonStringArrayList<>(listSize);
-      if (vector instanceof NullableIntVector || vector instanceof NullableVarCharVector) {
-        for (int i = 0; i < listSize; i++) {
-          vals.add(vector.getObject(index * listSize + i));
-        }
-      } else {
-        final ValueVector.Accessor valuesAccessor = vector.getAccessor();
-        for (int i = 0; i < listSize; i++) {
-          vals.add(valuesAccessor.getObject(index * listSize + i));
-        }
-      }
-      return vals;
+  @Override
+  public Object getObject(int index) {
+    if (isNull(index)) {
+      return null;
     }
-
-    @Override
-    public boolean isNull(int index) {
-      return bits.getAccessor().get(index) == 0;
+    final List<Object> vals = new JsonStringArrayList<>(listSize);
+    for (int i = 0; i < listSize; i++) {
+      vals.add(vector.getObject(index * listSize + i));
     }
-
-    @Override
-    public int getNullCount() {
-      return bits.getAccessor().getNullCount();
-    }
-
-    @Override
-    public int getValueCount() {
-      return bits.getAccessor().getValueCount();
-    }
+    return vals;
   }
 
-  public class Mutator extends BaseValueVector.BaseMutator {
+  public boolean isNull(int index) {
+    return bits.getAccessor().get(index) == 0;
+  }
 
-    public void setNull(int index) {
-      bits.getMutator().setSafe(index, 0);
-    }
+  @Override
+  public int getNullCount() {
+    return bits.getAccessor().getNullCount();
+  }
 
-    public void setNotNull(int index) {
-      bits.getMutator().setSafe(index, 1);
-    }
+  @Override
+  public int getValueCount() {
+    return bits.getAccessor().getValueCount();
+  }
 
-    @Override
-    public void setValueCount(int valueCount) {
-      bits.getMutator().setValueCount(valueCount);
-      if (vector instanceof  NullableIntVector || vector instanceof NullableVarCharVector) {
-        vector.setValueCount(valueCount * listSize);
-      } else {
-        vector.getMutator().setValueCount(valueCount * listSize);
-      }
-    }
+
+  public void setNull(int index) {
+    bits.getMutator().setSafe(index, 0);
+  }
+
+  public void setNotNull(int index) {
+    bits.getMutator().setSafe(index, 1);
+  }
+
+  @Override
+  public void setValueCount(int valueCount) {
+    bits.getMutator().setValueCount(valueCount);
+    vector.setValueCount(valueCount * listSize);
   }
 
   @Override

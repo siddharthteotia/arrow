@@ -370,7 +370,7 @@ public class TestArrowFile extends BaseFileTest {
       if (i < 8) {
         Assert.assertEquals((byte) (i + 1), vector.get(i));
       } else {
-        Assert.assertTrue(vector.getAccessor().isNull(i));
+        Assert.assertTrue(vector.isNull(i));
       }
     }
   }
@@ -397,7 +397,7 @@ public class TestArrowFile extends BaseFileTest {
     try (BufferAllocator originalVectorAllocator = allocator.newChildAllocator("original vectors", 0, Integer.MAX_VALUE);
          NullableMapVector vector = (NullableMapVector) field.createVector(originalVectorAllocator)) {
       vector.allocateNewSafe();
-      vector.getMutator().setValueCount(0);
+      vector.setValueCount(0);
 
       List<FieldVector> vectors = ImmutableList.<FieldVector>of(vector);
       VectorSchemaRoot root = new VectorSchemaRoot(originalSchema, vectors, 0);
@@ -578,13 +578,13 @@ public class TestArrowFile extends BaseFileTest {
       parent.allocateNew();
 
       for (int i = 0; i < 10; i++) {
-        tuples.getMutator().setNotNull(i);
+        tuples.setNotNull(i);
         floats.set(i * 2, i + 0.1f);
         floats.set(i * 2 + 1, i + 10.1f);
         ints.set(i, i);
       }
 
-      parent.getMutator().setValueCount(10);
+      parent.setValueCount(10);
       write(parent, file, stream);
     }
 
@@ -600,8 +600,8 @@ public class TestArrowFile extends BaseFileTest {
         arrowReader.loadRecordBatch(rbBlock);
         Assert.assertEquals(count, root.getRowCount());
         for (int i = 0; i < 10; i++) {
-          Assert.assertEquals(Lists.newArrayList(i + 0.1f, i + 10.1f), root.getVector("float-pairs").getAccessor().getObject(i));
-          Assert.assertEquals(i, root.getVector("ints").getAccessor().getObject(i));
+          Assert.assertEquals(Lists.newArrayList(i + 0.1f, i + 10.1f), root.getVector("float-pairs").getObject(i));
+          Assert.assertEquals(i, root.getVector("ints").getObject(i));
         }
       }
     }
@@ -616,8 +616,8 @@ public class TestArrowFile extends BaseFileTest {
       arrowReader.loadNextBatch();
       Assert.assertEquals(count, root.getRowCount());
       for (int i = 0; i < 10; i++) {
-        Assert.assertEquals(Lists.newArrayList(i + 0.1f, i + 10.1f), root.getVector("float-pairs").getAccessor().getObject(i));
-        Assert.assertEquals(i, root.getVector("ints").getAccessor().getObject(i));
+        Assert.assertEquals(Lists.newArrayList(i + 0.1f, i + 10.1f), root.getVector("float-pairs").getObject(i));
+        Assert.assertEquals(i, root.getVector("ints").getObject(i));
       }
     }
   }

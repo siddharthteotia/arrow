@@ -178,7 +178,8 @@ public class NullableDecimalVector extends BaseNullableFixedWidthVector {
     * @param index   position of element
     * @param value   BigDecimal containing decimal value.
     */
-   public void set(int index, BigDecimal value){
+   public void set(int index, BigDecimal value) {
+      BitVectorHelper.setValidityBitToOne(validityBuffer, index);
       DecimalUtility.checkPrecisionAndScale(value, precision, scale);
       DecimalUtility.writeBigDecimalToArrowBuf(value, valueBuffer, index);
    }

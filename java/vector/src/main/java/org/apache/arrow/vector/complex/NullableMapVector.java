@@ -60,9 +60,6 @@ public class NullableMapVector extends MapVector implements FieldVector {
 
   private final List<BufferBacked> innerVectors;
 
-  private final Accessor accessor;
-  private final Mutator mutator;
-
   // deprecated, use FieldType or static constructor instead
   @Deprecated
   public NullableMapVector(String name, BufferAllocator allocator, CallBack callBack) {
@@ -79,8 +76,6 @@ public class NullableMapVector extends MapVector implements FieldVector {
     super(name, checkNotNull(allocator), fieldType, callBack);
     this.bits = new BitVector("$bits$", allocator);
     this.innerVectors = Collections.unmodifiableList(Arrays.<BufferBacked>asList(bits));
-    this.accessor = new Accessor();
-    this.mutator = new Mutator();
   }
 
   @Override
@@ -261,82 +256,60 @@ public class NullableMapVector extends MapVector implements FieldVector {
     throw new UnsupportedOperationException();
   }
 
-  public final class Accessor extends MapVector.Accessor {
-    final BitVector.Accessor bAccessor = bits.getAccessor();
-
-    @Override
-    public Object getObject(int index) {
-      if (isNull(index)) {
-        return null;
-      } else {
-        return super.getObject(index);
-      }
+  @Override
+  public Object getObject(int index) {
+    if (isNull(index)) {
+      return null;
+    } else {
+      return super.getObject(index);
     }
-
-    @Override
-    public void get(int index, ComplexHolder holder) {
-      holder.isSet = isSet(index);
-      super.get(index, holder);
-    }
-
-    @Override
-    public int getNullCount() {
-      return bits.getAccessor().getNullCount();
-    }
-
-    @Override
-    public boolean isNull(int index) {
-      return isSet(index) == 0;
-    }
-
-    public int isSet(int index) {
-      return bAccessor.get(index);
-    }
-
   }
 
-  public final class Mutator extends MapVector.Mutator implements NullableVectorDefinitionSetter {
+  @Override
+  public void get(int index, ComplexHolder holder) {
+    holder.isSet = isSet(index);
+    super.get(index, holder);
+  }
 
-    private Mutator() {
-    }
+  public int getNullCount() {
+    return bits.getAccessor().getNullCount();
+  }
 
-    @Override
-    public void setIndexDefined(int index) {
-      bits.getMutator().setSafe(index, 1);
-    }
+  public boolean isNull(int index) {
+    return isSet(index) == 0;
+  }
 
-    public void setNull(int index) {
-      bits.getMutator().setSafe(index, 0);
-    }
+  public int isSet(int index) {
+    return bits.getAccessor().get(index);
+  }
 
-    @Override
-    public void setValueCount(int valueCount) {
-      assert valueCount >= 0;
-      super.setValueCount(valueCount);
-      bits.getMutator().setValueCount(valueCount);
-    }
+  public void setIndexDefined(int index) {
+    bits.getMutator().setSafe(index, 1);
+  }
 
-    @Override
-    public void generateTestData(int valueCount) {
-      super.generateTestData(valueCount);
-      bits.getMutator().generateTestDataAlt(valueCount);
-    }
+  public void setNull(int index) {
+    bits.getMutator().setSafe(index, 0);
+  }
 
-    @Override
-    public void reset() {
-      bits.getMutator().setValueCount(0);
-    }
+  @Override
+  public void setValueCount(int valueCount) {
+    assert valueCount >= 0;
+    super.setValueCount(valueCount);
+    bits.getMutator().setValueCount(valueCount);
+  }
 
+  public void reset() {
+    bits.getMutator().setValueCount(0);
   }
 
   @Override
   public Accessor getAccessor() {
-    return accessor;
+    throw new UnsupportedOperationException("accessor not needed for Nullable MAP");
   }
 
   @Override
   public Mutator getMutator() {
-    return mutator;
+    throw new UnsupportedOperationException("mutator not needed for Nullable MAP");
   }
 
 }

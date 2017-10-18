@@ -58,8 +58,6 @@ public class ListVector extends BaseRepeatedValueVector implements FieldVector, 
   final UInt4Vector offsets;
   final BitVector bits;
   private final List<BufferBacked> innerVectors;
-  private Mutator mutator = new Mutator();
-  private Accessor accessor = new Accessor();
   private UnionListReader reader;
   private CallBack callBack;
   private final FieldType fieldType;
@@ -245,7 +243,7 @@ public class ListVector extends BaseRepeatedValueVector implements FieldVector, 
       bitsTransferPair.splitAndTransfer(startIndex, length);
       dataTransferPair.splitAndTransfer(startPoint, sliceLength);
       to.lastSet = length;
-      to.mutator.setValueCount(length);
+      to.setValueCount(length);
     }
 
     @Override
@@ -257,16 +255,6 @@ public class ListVector extends BaseRepeatedValueVector implements FieldVector, 
     public void copyValueSafe(int from, int to) {
       this.to.copyFrom(from, to, ListVector.this);
     }
-  }
-
-  @Override
-  public Accessor getAccessor() {
-    return accessor;
-  }
-
-  @Override
-  public Mutator getMutator() {
-    return mutator;
   }
 
   @Override
@@ -308,7 +296,7 @@ public class ListVector extends BaseRepeatedValueVector implements FieldVector, 
 
   @Override
   public int getBufferSize() {
-    if (getAccessor().getValueCount() == 0) {
+    if (getValueCount() == 0) {
       return 0;
     }
     return offsets.getBufferSize() + bits.getBufferSize() + vector.getBufferSize();
@@ -362,97 +350,80 @@ public class ListVector extends BaseRepeatedValueVector implements FieldVector, 
 
   private int lastSet = 0;
 
-  public class Accessor extends BaseRepeatedAccessor {
-
-    @Override
-    public Object getObject(int index) {
-      if (isNull(index)) {
-        return null;
-      }
-      final List<Object> vals = new JsonStringArrayList<>();
-      final UInt4Vector.Accessor offsetsAccessor = offsets.getAccessor();
-      final int start = offsetsAccessor.get(index);
-      final int end = offsetsAccessor.get(index + 1);
-      final ValueVector vv = getDataVector();
-      if (vv instanceof  NullableIntVector || vv instanceof NullableVarCharVector) {
-        for (int i = start; i < end; i++) {
-          vals.add(vv.getObject(i));
-        }
-      } else {
-        final ValueVector.Accessor valuesAccessor = vv.getAccessor();
-        for (int i = start; i < end; i++) {
-          vals.add(valuesAccessor.getObject(i));
-        }
-      }
-
-      return vals;
+  @Override
+  public Object getObject(int index) {
+    if (isNull(index)) {
+      return null;
+    }
+    final List<Object> vals = new JsonStringArrayList<>();
+    final UInt4Vector.Accessor offsetsAccessor = offsets.getAccessor();
+    final int start = offsetsAccessor.get(index);
+    final int end = offsetsAccessor.get(index + 1);
+    final ValueVector vv = getDataVector();
+    for (int i = start; i < end; i++) {
+      vals.add(vv.getObject(i));
     }
 
-    @Override
-    public boolean isNull(int index) {
-      return bits.getAccessor().get(index) == 0;
-    }
-
-    @Override
-    public int getNullCount() {
-      return bits.getAccessor().getNullCount();
-    }
+    return vals;
   }
 
-  public class Mutator extends BaseRepeatedMutator {
-    public void setNotNull(int index) {
-      bits.getMutator().setSafe(index, 1);
-      lastSet = index + 1;
-    }
+  @Override
+  public boolean isNull(int index) {
+    return bits.getAccessor().get(index) == 0;
+  }
 
-    @Override
-    public int startNewValue(int index) {
-      for (int i = lastSet; i <= index; i++) {
+  @Override
+  public int getNullCount() {
+    return bits.getAccessor().getNullCount();
+  }
+
+  public void setNotNull(int index) {
+    bits.getMutator().setSafe(index, 1);
+    lastSet = index + 1;
+  }
+
+  @Override
+  public int startNewValue(int index) {
+    for (int i = lastSet; i <= index; i++) {
+      offsets.getMutator().setSafe(i + 1, offsets.getAccessor().get(i));
+    }
+    setNotNull(index);
+    lastSet = index + 1;
+    return offsets.getAccessor().get(lastSet);
+  }
+
+  /**
+   * End the current value
+   *
+   * @param index index of the value to end
+   * @param size  number of elements in the list that was written
+   */
+  public void endValue(int index, int size) {
+    offsets.getMutator().set(index + 1, offsets.getAccessor().get(index + 1) + size);
+  }
+
+  @Override
+  public void setValueCount(int valueCount) {
+    // TODO: populate offset end points
+    if (valueCount == 0) {
+      offsets.getMutator().setValueCount(0);
+    } else {
+      for (int i = lastSet; i < valueCount; i++) {
         offsets.getMutator().setSafe(i + 1, offsets.getAccessor().get(i));
       }
-      setNotNull(index);
-      lastSet = index + 1;
-      return offsets.getAccessor().get(lastSet);
+      offsets.getMutator().setValueCount(valueCount + 1);
     }
+    final int childValueCount = valueCount == 0 ? 0 : offsets.getAccessor().get(valueCount);
+    vector.setValueCount(childValueCount);
 
-    /**
-     * End the current value
-     *
-     * @param index index of the value to end
-     * @param size  number of elements in the list that was written
-     */
-    public void endValue(int index, int size) {
-      offsets.getMutator().set(index + 1, offsets.getAccessor().get(index + 1) + size);
-    }
-
-    @Override
-    public void setValueCount(int valueCount) {
-      // TODO: populate offset end points
-      if (valueCount == 0) {
-        offsets.getMutator().setValueCount(0);
-      } else {
-        for (int i = lastSet; i < valueCount; i++) {
-          offsets.getMutator().setSafe(i + 1, offsets.getAccessor().get(i));
-        }
-        offsets.getMutator().setValueCount(valueCount + 1);
-      }
-      final int childValueCount = valueCount == 0 ? 0 : offsets.getAccessor().get(valueCount);
-      if (vector instanceof NullableIntVector || vector instanceof NullableVarCharVector) {
-        vector.setValueCount(childValueCount);
-      } else {
-        vector.getMutator().setValueCount(childValueCount);
-      }
-
-      bits.getMutator().setValueCount(valueCount);
-    }
-
-    public void setLastSet(int value) {
-      lastSet = value;
-    }
-
-    public int getLastSet() {
-      return lastSet;
-    }
+    bits.getMutator().setValueCount(valueCount);
   }
 
+  public void setLastSet(int value) {
+    lastSet = value;
+  }
+
+  public int getLastSet() {
+    return lastSet;
+  }
 }

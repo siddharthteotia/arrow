@@ -187,54 +187,50 @@ public abstract class BaseRepeatedValueVector extends BaseValueVector implements
     vector = v;
   }
 
-  public abstract class BaseRepeatedAccessor extends BaseValueVector.BaseAccessor implements RepeatedAccessor {
 
-    @Override
-    public int getValueCount() {
-      return Math.max(offsets.getAccessor().getValueCount() - 1, 0);
-    }
-
-    @Override
-    public int getInnerValueCount() {
-      return vector.getAccessor().getValueCount();
-    }
-
-    @Override
-    public int getInnerValueCountAt(int index) {
-      return offsets.getAccessor().get(index + 1) - offsets.getAccessor().get(index);
-    }
-
-    @Override
-    public boolean isNull(int index) {
-      return false;
-    }
-
-    @Override
-    public boolean isEmpty(int index) {
-      return false;
-    }
+  @Override
+  public int getValueCount() {
+    return Math.max(offsets.getAccessor().getValueCount() - 1, 0);
   }
 
-  public abstract class BaseRepeatedMutator extends BaseValueVector.BaseMutator implements RepeatedMutator {
-
-    @Override
-    public int startNewValue(int index) {
-      while (offsets.getValueCapacity() <= index) {
-        offsets.reAlloc();
-      }
-      int offset = offsets.getAccessor().get(index);
-      offsets.getMutator().setSafe(index + 1, offset);
-      setValueCount(index + 1);
-      return offset;
-    }
-
-    @Override
-    public void setValueCount(int valueCount) {
-      // TODO: populate offset end points
-      offsets.getMutator().setValueCount(valueCount == 0 ? 0 : valueCount + 1);
-      final int childValueCount = valueCount == 0 ? 0 : offsets.getAccessor().get(valueCount);
-      vector.getMutator().setValueCount(childValueCount);
-    }
+  public int getInnerValueCount() {
+    return vector.getAccessor().getValueCount();
   }
 
+  public int getInnerValueCountAt(int index) {
+    return offsets.getAccessor().get(index + 1) - offsets.getAccessor().get(index);
+  }
+
+  public boolean isNull(int index) {
+    return false;
+  }
+
+  public boolean isEmpty(int index) {
+    return false;
+  }
+
+  public int startNewValue(int index) {
+    while (offsets.getValueCapacity() <= index) {
+      offsets.reAlloc();
+    }
+    int offset = offsets.getAccessor().get(index);
+    offsets.getMutator().setSafe(index + 1, offset);
+    setValueCount(index + 1);
+    return offset;
+  }
+
+  public void setValueCount(int valueCount) {
+    // TODO: populate offset end points
+    offsets.getMutator().setValueCount(valueCount == 0 ? 0 : valueCount + 1);
+    final int childValueCount = valueCount == 0 ? 0 : offsets.getAccessor().get(valueCount);
+    vector.getMutator().setValueCount(childValueCount);
+  }
+
+  public RepeatedAccessor getAccessor() {
+    throw new UnsupportedOperationException("accessor is not needed for LIST");
+  }
+
+  public RepeatedMutator getMutator() {
+    throw new UnsupportedOperationException("mutator is not needed for LIST");
+  }
 }

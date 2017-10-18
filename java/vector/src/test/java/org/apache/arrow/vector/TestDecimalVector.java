@@ -74,11 +74,11 @@ public class TestDecimalVector {
         decimalVector.setSafe(i, decimal);
       }
 
-      decimalVector.getMutator().setValueCount(intValues.length);
+      decimalVector.setValueCount(intValues.length);
 
       for (int i = 0; i < intValues.length; i++) {
         BigDecimal value = decimalVector.getObject(i);
-        assertEquals(values[i], value);
+        assertEquals("unexpected data at index: " + i, values[i], value);
       }
     }
   }

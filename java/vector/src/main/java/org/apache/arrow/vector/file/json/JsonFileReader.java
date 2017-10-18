@@ -257,7 +257,7 @@ public class JsonFileReader implements AutoCloseable, DictionaryProvider {
       switch (vector.getMinorType()) {
         case LIST:
           // ListVector starts lastSet from index 0, so lastSet value is always last index written + 1
-          ((ListVector) vector).getMutator().setLastSet(count);
+          ((ListVector) vector).setLastSet(count);
           break;
         case VARBINARY:
           ((NullableVarBinaryVector)vector).setLastSet(count - 1);
@@ -266,7 +266,7 @@ public class JsonFileReader implements AutoCloseable, DictionaryProvider {
           ((NullableVarCharVector)vector).setLastSet(count - 1);
           break;
       }
-      vector.getMutator().setValueCount(count);
+      vector.setValueCount(count);
 
       // read child vectors, if any
       List<Field> fields = field.getChildren();

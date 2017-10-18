@@ -72,7 +72,7 @@ public class UnionListWriter extends AbstractFieldWriter {
   }
 
   public void setValueCount(int count) {
-    vector.getMutator().setValueCount(count);
+    vector.setValueCount(count);
   }
 
   @Override
@@ -133,7 +133,7 @@ public class UnionListWriter extends AbstractFieldWriter {
 
   @Override
   public void startList() {
-    vector.getMutator().startNewValue(idx());
+    vector.startNewValue(idx());
     writer.setPosition(offsets.getAccessor().get(idx() + 1));
   }
 

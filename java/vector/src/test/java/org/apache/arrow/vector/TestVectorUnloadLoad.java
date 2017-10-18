@@ -314,7 +314,7 @@ public class TestVectorUnloadLoad {
 
   public static VectorUnloader newVectorUnloader(FieldVector root) {
     Schema schema = new Schema(root.getField().getChildren());
-    int valueCount = root.getAccessor().getValueCount();
+    int valueCount = root.getValueCount();
     List<FieldVector> fields = root.getChildrenFromFields();
     VectorSchemaRoot vsr = new VectorSchemaRoot(schema.getFields(), fields, valueCount);
     return new VectorUnloader(vsr);
