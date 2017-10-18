@@ -26,6 +26,7 @@ import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.TransferImpl;
 import org.apache.arrow.vector.util.TransferPair;
 
 /**
@@ -33,7 +34,9 @@ import org.apache.arrow.vector.util.TransferPair;
  * integer values which could be null. A validity buffer (bit vector) is
  * maintained to track which elements in the vector are null.
  */
-public class NullableIntVector extends BaseNullableFixedWidthVector {
+public class NullableIntVector
+    extends BaseNullableFixedWidthVector
+    implements Transferable<NullableIntVector> {
    private static final org.slf4j.Logger logger =
            org.slf4j.LoggerFactory.getLogger(NullableIntVector.class);
    private static final byte TYPE_WIDTH = 4;
@@ -115,19 +118,7 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
       }
    }
 
-   public void copyFrom(int fromIndex, int thisIndex, NullableIntVector from) {
-      if (from.isSet(fromIndex) != 0) {
-         set(thisIndex, from.get(fromIndex));
-      }
-   }
-
-   public void copyFromSafe(int fromIndex, int thisIndex, NullableIntVector from) {
-      handleSafe(thisIndex);
-      copyFrom(fromIndex, thisIndex, from);
-   }
-
-
-   /******************************************************************
+  /******************************************************************
     *                                                                *
     *          vector value setter methods                           *
     *                                                                *
@@ -253,46 +244,35 @@ public class NullableIntVector extends BaseNullableFixedWidthVector {
     *                                                                *
     ******************************************************************/
 
+   public void copyFrom(int fromIndex, int thisIndex, NullableIntVector from) {
+     if (from.isSet(fromIndex) != 0) {
+       set(thisIndex, from.get(fromIndex));
+     }
+   }
+
+   @Override
+   public void splitAndTransferTo(int startIndex, int length, NullableIntVector to) {
+     super.splitAndTransferTo(startIndex, length, to);
+   }
+
+   @Override
+   public void transferTo(NullableIntVector to) {
+     super.transferTo(to);
+   }
+
+   @Override
+   public void copyFromSafe(int fromIndex, int thisIndex, NullableIntVector from) {
+     handleSafe(thisIndex);
+     copyFrom(fromIndex, thisIndex, from);
+   }
 
    @Override
    public TransferPair getTransferPair(String ref, BufferAllocator allocator){
-      return new TransferImpl(ref, allocator);
+     NullableIntVector to = new NullableIntVector(ref, field.getFieldType(), allocator);
+     return new TransferImpl<NullableIntVector>(this, to);
    }
 
-   @Override
    public TransferPair makeTransferPair(ValueVector to) {
-      return new TransferImpl((NullableIntVector)to);
-   }
-
-   private class TransferImpl implements TransferPair {
-      NullableIntVector to;
-
-      public TransferImpl(String ref, BufferAllocator allocator){
-         to = new NullableIntVector(ref, field.getFieldType(), allocator);
-      }
-
-      public TransferImpl(NullableIntVector to){
-         this.to = to;
-      }
-
-      @Override
-      public NullableIntVector getTo(){
-         return to;
-      }
-
-      @Override
-      public void transfer(){
-         transferTo(to);
-      }
-
-      @Override
-      public void splitAndTransfer(int startIndex, int length) {
-         splitAndTransferTo(startIndex, length, to);
-      }
-
-      @Override
-      public void copyValueSafe(int fromIndex, int toIndex) {
-         to.copyFromSafe(fromIndex, toIndex, NullableIntVector.this);
-      }
+     return new TransferImpl<NullableIntVector>((NullableIntVector) to);
    }
 }
