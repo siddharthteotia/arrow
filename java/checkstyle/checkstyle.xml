@@ -227,4 +227,8 @@
         </module>
         <module name="CommentsIndentation"/>
     </module>
+
+    <module name="NewlineAtEndOfFile">
+        <property name="lineSeparator" value="lf"/>
+    </module>
 </module>
